@@ -28,12 +28,13 @@
 
 #include <Objbase.h>
 #include <io.h>
+#include <float.h>
 
 using namespace std;
 
 // ----------------------------------------------------------------------------------------------------------
 
-static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput, bool *silentMode, bool *aggressiveMode)
+static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput, bool *silentMode, bool *aggressiveMode, bool *noCompensation)
 {
 	*inputFile = NULL;
 	*outputFile = NULL;
@@ -41,6 +42,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 	*rawOutput = false;
 	*silentMode = false;
 	*aggressiveMode = false;
+	*noCompensation = false;
 	char *temp = NULL;
 
 	for(int i = 1; i < argc; i++)
@@ -99,6 +101,11 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 			*aggressiveMode = true;
 			continue;
 		}
+		if(!_wcsicmp(argv[i], L"-n"))
+		{
+			*noCompensation = true;
+			continue;
+		}
 		
 		if(temp = utf16_to_utf8(argv[i]))
 		{
@@ -109,6 +116,12 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 		return false;
 	}
 
+	if((*noCompensation) && (*aggressiveMode))
+	{
+		cerr << "Can not use \"-a\" and \"-n\" options at the same time!\n" << endl;
+		return false;
+	}
+	
 	if(!((*inputFile) && (*outputFile)))
 	{
 		cerr << "Input and/or output file not specified!\n" << endl;
@@ -129,7 +142,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 static int wma2wav(int argc, _TCHAR* argv[])
 {
 	repair_standard_streams();
-	
+
 	cerr << "wma2wav - Dump WMA/WMV files to Wave Audio [" __DATE__ "]" << endl;
 	cerr << "Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved." << endl;
 	cerr << "Released under the terms of the GNU General Public License.\n" << endl;
@@ -150,9 +163,10 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	bool rawOutput = false;
 	bool silentMode = false;
 	bool aggressiveMode = false;
+	bool noCompensation = false;
 	char *temp = NULL;
 
-	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput, &silentMode, &aggressiveMode))
+	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput, &silentMode, &aggressiveMode, &noCompensation))
 	{
 		cerr << "Usage:" << endl;
 		cerr << "  wma2wav.exe [options] -i <input> -o <output>\n" << endl;
@@ -162,11 +176,12 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -f           Force overwrite of output file (if already exists)" << endl;
 		cerr << "  -r           Output \"raw\" PCM data to file instead of Wave/RIFF file" << endl;
 		cerr << "  -s           Silent mode, do not display progress indicator" << endl;
-		cerr << "  -a           Enable the \"aggressive\" gap compensation/padding mode\n" << endl;
+		cerr << "  -a           Enable the \"aggressive\" gap compensation/padding mode" << endl;
+		cerr << "  -n           No gap compensation/padding (can not use with \"-a\")\n" << endl;
 		return 1;
 	}
 
-	const double maxGapSize = aggressiveMode ? 0.0000001 : 0.0010001;
+	const double maxGapSize = noCompensation ? numeric_limits<double>::infinity() : (aggressiveMode ? 0.00000001 : 0.00100001);
 
 	if(CoInitializeEx(NULL, COINIT_MULTITHREADED) != S_OK)
 	{
@@ -314,32 +329,43 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 		if((sampleTimestamp >= 0.0) && (abs(sampleTimestamp - currentTime) > maxGapSize))
 		{
-			cerr << "\rInconsistent timestamps: expected " << currentTime << ", but got " << sampleTimestamp << "." << endl;
+			if(!silentMode)
+			{
+				fprintf(stderr, "\rInconsistent timestamps: expected %10.8f, but got %10.8f.\n", currentTime, sampleTimestamp);
+			}
+
 			if(sampleTimestamp > currentTime)
 			{
 				SecureZeroMemory(buffer, bufferLen);
 				size_t paddingBytes = static_cast<size_t>(floor((sampleTimestamp - currentTime) * static_cast<double>(format.nSamplesPerSec))) * (format.wBitsPerSample / 8) * format.nChannels;
-				if(!silentMode) cerr << "There is a \"gap\" of " << (sampleTimestamp - currentTime) << " seconds, padding " << paddingBytes << " zero bytes!\n" << endl;
-
-				while(paddingBytes > 0)
+				
+				if(paddingBytes > 0)
 				{
-					size_t currentSize = min(paddingBytes, bufferLen);
-					if(!sink->write(currentSize, buffer))
+					if(!silentMode)
 					{
-						cerr << "\n\nFailed to write sample to output file!" << endl;
-						SAFE_DELETE(sink);
-						SAFE_DELETE(wmaReader);
-						SAFE_DELETE_ARRAY(buffer);
-						return 9;
+						fprintf(stderr, "There is a \"gap\" of %10.8f seconds, padding %I64u zero bytes!\n\n", (sampleTimestamp - currentTime), static_cast<unsigned __int64>(paddingBytes));
 					}
-					paddingBytes = paddingBytes - currentSize;
+
+					while(paddingBytes > 0)
+					{
+						size_t currentSize = min(paddingBytes, bufferLen);
+						if(!sink->write(currentSize, buffer))
+						{
+							cerr << "\n\nFailed to write sample to output file!" << endl;
+							SAFE_DELETE(sink);
+							SAFE_DELETE(wmaReader);
+							SAFE_DELETE_ARRAY(buffer);
+							return 9;
+						}
+						paddingBytes = paddingBytes - currentSize;
+					}
 				}
 			}
 			else
 			{
 				if(!silentMode)
 				{
-					cerr << "The samples \"overlap\" for " << (currentTime - sampleTimestamp) << " seconds, can't correct!\n" << endl;
+					fprintf(stderr, "The samples \"overlap\" for %10.8f seconds, can't correct!\n\n", (currentTime - sampleTimestamp));
 				}
 			}
 		}
