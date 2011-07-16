@@ -141,11 +141,22 @@ bool CWmaReader::analyze(void)
 						
 						if(m_reader->GetStreamNumberForOutput(i, &streamNum) == S_OK)
 						{
-							m_format = new WAVEFORMATEX;
-							memcpy(m_format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
-							m_outputNum = i;
-							m_streamNum = streamNum;
-							foundAudioStream = true;
+							if(m_reader->SetReadStreamSamples(streamNum, FALSE) == S_OK)
+							{
+								BOOL isCompressed = TRUE;
+							
+								if(m_reader->GetReadStreamSamples(streamNum, &isCompressed) == S_OK)
+								{
+									if(isCompressed == FALSE)
+									{
+										m_format = new WAVEFORMATEX;
+										memcpy(m_format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
+										m_outputNum = i;
+										m_streamNum = streamNum;
+										foundAudioStream = true;
+									}
+								}
+							}
 						}
 					}
 				}

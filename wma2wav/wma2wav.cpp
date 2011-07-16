@@ -193,8 +193,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	if(!wmaReader->open(inputFile))
 	{
-		cerr << "Failed" << endl;
-		delete wmaReader;
+		cerr << "Failed\n\nMake sure that the input file is a valid ASF (WMA/WMV) file!" << endl;
+		SAFE_DELETE(wmaReader);
 		return 4;
 	}
 	
@@ -202,8 +202,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	if(!wmaReader->analyze())
 	{
-		cerr << "Failed" << endl;
-		delete wmaReader;
+		cerr << "Failed\n\nThis usually indicates that the ASF file contains no suitable audio stream." << endl;
+		SAFE_DELETE(wmaReader);
 		return 5;
 	}
 		
