@@ -22,6 +22,8 @@
 #include "stdafx.h"
 
 #include "WmaReader.h"
+#include "WaveWriter.h"
+#include "RawWriter.h"
 #include "Utils.h"
 
 #include <Objbase.h>
@@ -31,13 +33,14 @@ using namespace std;
 
 // ----------------------------------------------------------------------------------------------------------
 
-static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput, bool *silentMode)
+static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput, bool *silentMode, bool *aggressiveMode)
 {
 	*inputFile = NULL;
 	*outputFile = NULL;
 	*overwrite = false;
 	*rawOutput = false;
 	*silentMode = false;
+	*aggressiveMode = false;
 	char *temp = NULL;
 
 	for(int i = 1; i < argc; i++)
@@ -91,6 +94,11 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 			*silentMode = true;
 			continue;
 		}
+		if(!_wcsicmp(argv[i], L"-a"))
+		{
+			*aggressiveMode = true;
+			continue;
+		}
 		
 		if(temp = utf16_to_utf8(argv[i]))
 		{
@@ -126,6 +134,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	cerr << "Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved." << endl;
 	cerr << "Released under the terms of the GNU General Public License.\n" << endl;
 
+	CAbstractSink *sink = NULL;
 	CWmaReader *wmaReader = NULL;
 	WAVEFORMATEX format;
 	SecureZeroMemory(&format, sizeof(WAVEFORMATEX));
@@ -137,13 +146,13 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	short indicator = 0;
 	wchar_t *inputFile = NULL;
 	wchar_t *outputFile = NULL;
-	FILE *writer = NULL;
 	bool overwriteFlag = false;
 	bool rawOutput = false;
 	bool silentMode = false;
+	bool aggressiveMode = false;
 	char *temp = NULL;
 
-	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput, &silentMode))
+	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput, &silentMode, &aggressiveMode))
 	{
 		cerr << "Usage:" << endl;
 		cerr << "  wma2wav.exe [options] -i <input> -o <output>\n" << endl;
@@ -152,15 +161,12 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -o <output>  Select output Wave file to write to, specify \"-\" for STDOUT" << endl;
 		cerr << "  -f           Force overwrite of output file (if already exists)" << endl;
 		cerr << "  -r           Output \"raw\" PCM data to file instead of Wave/RIFF file" << endl;
-		cerr << "  -s           Silent mode, do not display progress indicator\n" << endl;
+		cerr << "  -s           Silent mode, do not display progress indicator" << endl;
+		cerr << "  -a           Enable the \"aggressive\" gap compensation/padding mode\n" << endl;
 		return 1;
 	}
 
-	if(!rawOutput)
-	{
-		cerr << "Wave/RIFF output not implemented yet, please use \"-r\" option for now ;-)\n" << endl;
-		return 1;
-	}
+	const double maxGapSize = aggressiveMode ? 0.0000001 : 0.0010001;
 
 	if(CoInitializeEx(NULL, COINIT_MULTITHREADED) != S_OK)
 	{
@@ -228,7 +234,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	{
 		double duration_minutes, duration_seconds;
 		seconds_to_minutes(duration, &duration_minutes, &duration_seconds);
-		printf("fDuration: %.0f:%04.1f\n", duration_minutes, duration_seconds);
+		fprintf(stderr, "fDuration: %.0f:%04.1f\n", duration_minutes, duration_seconds);
 	}
 	
 	if((bufferLen = wmaReader->getSampleSize()) < 1)
@@ -241,18 +247,13 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	cerr << "nMaxSampleSize: " << bufferLen << endl;
 	cerr << "\nOpening output file... " << flush;
 
-	if(_wcsicmp(outputFile, L"-"))
+	sink = (!rawOutput) ? dynamic_cast<CAbstractSink*>(new CWaveWriter()) : dynamic_cast<CAbstractSink*>(new CRawWriter());
+
+	if(!sink->open(outputFile, &format))
 	{
-		if(_wfopen_s(&writer, outputFile, L"wb"))
-		{
-			cerr << "Failed" << endl;
-			SAFE_DELETE(wmaReader);
-			return 7;
-		}
-	}
-	else
-	{
-		writer = stdout;
+		cerr << "Failed" << endl;
+		SAFE_DELETE(wmaReader);
+		return 7;
 	}
 
 	cerr << "OK\n" << endl;
@@ -264,6 +265,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	bufferLen = ((bufferLen / 4096) + 1) * 4096;
 	buffer = new BYTE[bufferLen];
+	SecureZeroMemory(buffer, bufferLen);
 
 	while(true)
 	{
@@ -293,7 +295,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		if(!wmaReader->getNextSample(buffer, &sampleLen, &sampleTimestamp, &sampleDuration))
 		{
 			cerr << "\n\nFailed to read sample from input file!" << endl;
-			fclose(writer);
+			SAFE_DELETE(sink);
 			SAFE_DELETE(wmaReader);
 			SAFE_DELETE_ARRAY(buffer);
 			return 8;
@@ -307,30 +309,48 @@ static int wma2wav(int argc, _TCHAR* argv[])
 				seconds_to_minutes(currentTime, &currentTime_minutes, &currentTime_seconds);
 				fprintf(stderr, "\r[%3.1f%%] %.0f:%04.1f of %.0f:%04.1f completed, please wait...", 100.0, currentTime_minutes, currentTime_seconds, currentTime_minutes, currentTime_seconds);
 			}
-			cerr << "\n\nAll done." << endl;
 			break;
 		}
 
-		if(fwrite(buffer, 1,  sampleLen, writer) < sampleLen)
-		{
-			cerr << "\n\nFailed to write sample to output file!" << endl;
-			fclose(writer);
-			SAFE_DELETE(wmaReader);
-			SAFE_DELETE_ARRAY(buffer);
-			return 9;
-		}
-
-		if((sampleTimestamp >= 0.0) && (abs(sampleTimestamp - currentTime) > 0.00101) && (!silentMode))
+		if((sampleTimestamp >= 0.0) && (abs(sampleTimestamp - currentTime) > maxGapSize))
 		{
 			cerr << "\rInconsistent timestamps: expected " << currentTime << ", but got " << sampleTimestamp << "." << endl;
 			if(sampleTimestamp > currentTime)
 			{
-				cerr << "There is a \"gap\" of " << (sampleTimestamp - currentTime) << " seconds between the samples!\n" << endl;
+				SecureZeroMemory(buffer, bufferLen);
+				size_t paddingBytes = static_cast<size_t>(floor((sampleTimestamp - currentTime) * static_cast<double>(format.nSamplesPerSec))) * (format.wBitsPerSample / 8) * format.nChannels;
+				if(!silentMode) cerr << "There is a \"gap\" of " << (sampleTimestamp - currentTime) << " seconds, padding " << paddingBytes << " zero bytes!\n" << endl;
+
+				while(paddingBytes > 0)
+				{
+					size_t currentSize = min(paddingBytes, bufferLen);
+					if(!sink->write(currentSize, buffer))
+					{
+						cerr << "\n\nFailed to write sample to output file!" << endl;
+						SAFE_DELETE(sink);
+						SAFE_DELETE(wmaReader);
+						SAFE_DELETE_ARRAY(buffer);
+						return 9;
+					}
+					paddingBytes = paddingBytes - currentSize;
+				}
 			}
 			else
 			{
-				cerr << "The samples \"overlap\" for " << (currentTime - sampleTimestamp) << " seconds!\n" << endl;
+				if(!silentMode)
+				{
+					cerr << "The samples \"overlap\" for " << (currentTime - sampleTimestamp) << " seconds, can't correct!\n" << endl;
+				}
 			}
+		}
+
+		if(!sink->write(sampleLen, buffer))
+		{
+			cerr << "\n\nFailed to write sample to output file!" << endl;
+			SAFE_DELETE(sink);
+			SAFE_DELETE(wmaReader);
+			SAFE_DELETE_ARRAY(buffer);
+			return 9;
 		}
 
 		if(sampleDuration >= 0.0)
@@ -346,8 +366,19 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		}
 	}
 
-	fclose(writer);
+	if(!sink->close())
+	{
+		cerr << "\n\nError: Failed to properly close output file!" << endl;
+		SAFE_DELETE(wmaReader);
+		SAFE_DELETE(sink);
+		SAFE_DELETE_ARRAY(buffer);
+		return 10;
+	}
+
+	cerr << "\n\nAll done." << endl;
+
 	SAFE_DELETE(wmaReader);
+	SAFE_DELETE(sink);
 	SAFE_DELETE_ARRAY(buffer);
 
 	return 0;

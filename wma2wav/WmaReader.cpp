@@ -26,6 +26,8 @@ using namespace std;
 
 typedef HRESULT (__stdcall *WMCreateSyncReaderProc)(IUnknown* pUnkCert, DWORD dwRights, IWMSyncReader **ppSyncReader);
 
+#define LOAD_LIBRARY_SEARCH_SYSTEM32 0x00000800
+
 CWmaReader::CWmaReader(void)
 {
 	m_isOpen = false;
@@ -36,7 +38,7 @@ CWmaReader::CWmaReader(void)
 	m_outputNum = -1;
 	m_streamNum = -1;
 
-	HMODULE m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, 0x00000800);
+	HMODULE m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
 	if(!(m_wmvCore != NULL))
 	{
 		throw "Fatal Error: Failed to load WMVCORE.DLL libraray!";
