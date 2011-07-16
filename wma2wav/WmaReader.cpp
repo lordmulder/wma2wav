@@ -179,12 +179,13 @@ bool CWmaReader::analyze(void)
 
 double CWmaReader::getDuration(void)
 {
+	double duration = -1.0;
+
 	if(!(m_isOpen && m_isAnalyzed))
 	{
 		return false;
 	}
 	
-	double duration = 0.0;
 	IWMHeaderInfo* pHdrInfo = NULL;
 	
 	if(m_reader->QueryInterface(IID_IWMHeaderInfo,(void**)&pHdrInfo) == S_OK)
@@ -214,6 +215,8 @@ double CWmaReader::getDuration(void)
 
 bool CWmaReader::getFormat(WAVEFORMATEX *format)
 {
+	SecureZeroMemory(format, sizeof(WAVEFORMATEX));
+	
 	if(!(m_isOpen && m_isAnalyzed))
 	{
 		return false;
@@ -239,9 +242,11 @@ size_t CWmaReader::getSampleSize(void)
 	return 0;
 }
 
-bool CWmaReader::getNextSample(BYTE *output, size_t *length)
+bool CWmaReader::getNextSample(BYTE *output, size_t *length, double *timeStamp, double *sampleDuration)
 {
 	*length = 0;
+	if(timeStamp) *timeStamp = -1.0;
+	if(sampleDuration) *sampleDuration = -1.0;
 
 	if(!(m_isOpen && m_isAnalyzed))
 	{
@@ -277,7 +282,10 @@ bool CWmaReader::getNextSample(BYTE *output, size_t *length)
 
 	memcpy(output, bufferPtr, bufferLen);
 	*length = bufferLen;
-	buffer->Release();
 	
+	if(timeStamp) *timeStamp = static_cast<double>(time) / 10000000.0;
+	if(sampleDuration) *sampleDuration = static_cast<double>(duration) / 10000000.0;
+	
+	buffer->Release();
 	return true;
 }

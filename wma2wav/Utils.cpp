@@ -65,3 +65,12 @@ void repair_standard_streams(void)
 		if(hfStderr) *stderr = *hfStderr;
 	}
 }
+
+void seconds_to_minutes(double seconds, double *minutes_part, double *seconds_part)
+{
+	
+	double _minutes = 0.0;
+	double _seconds = modf((seconds / 60.0), &_minutes);
+	*minutes_part = _minutes;
+	*seconds_part = _seconds * 60.0;
+}

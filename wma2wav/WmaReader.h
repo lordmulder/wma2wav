@@ -36,7 +36,7 @@ public:
 	bool getFormat(WAVEFORMATEX *format);
 	size_t getSampleSize(void);
 	double getDuration(void);
-	bool getNextSample(BYTE *output, size_t *length);
+	bool getNextSample(BYTE *output, size_t *length, double *timeStamp = NULL, double *sampleDuration = NULL);
 
 private:
 	HMODULE m_wmvCore;

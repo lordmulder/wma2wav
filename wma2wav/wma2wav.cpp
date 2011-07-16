@@ -31,12 +31,13 @@ using namespace std;
 
 // ----------------------------------------------------------------------------------------------------------
 
-static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput)
+static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput, bool *silentMode)
 {
 	*inputFile = NULL;
 	*outputFile = NULL;
 	*overwrite = false;
 	*rawOutput = false;
+	*silentMode = false;
 	char *temp = NULL;
 
 	for(int i = 1; i < argc; i++)
@@ -85,6 +86,11 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 			*rawOutput = true;
 			continue;
 		}
+		if(!_wcsicmp(argv[i], L"-s"))
+		{
+			*silentMode = true;
+			continue;
+		}
 		
 		if(temp = utf16_to_utf8(argv[i]))
 		{
@@ -123,23 +129,21 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	CWmaReader *wmaReader = NULL;
 	WAVEFORMATEX format;
 	SecureZeroMemory(&format, sizeof(WAVEFORMATEX));
-	double duration = 0.0;
+	double duration = -1.0;
 	BYTE *buffer = NULL;
 	size_t bufferLen = 0;
 	size_t sampleLen = 0;
+	double currentTime = 0.0;
 	short indicator = 0;
-	unsigned __int64 samplesTotal = 0;
-	unsigned __int64 samplesCurrent = 0;
-	unsigned __int64 bytesWritten = 0;
-	unsigned int bytesPerSample = 0;
 	wchar_t *inputFile = NULL;
 	wchar_t *outputFile = NULL;
 	FILE *writer = NULL;
 	bool overwriteFlag = false;
 	bool rawOutput = false;
+	bool silentMode = false;
 	char *temp = NULL;
 
-	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput))
+	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput, &silentMode))
 	{
 		cerr << "Usage:" << endl;
 		cerr << "  wma2wav.exe [options] -i <input> -o <output>\n" << endl;
@@ -147,7 +151,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -i <input>   Select input ASF (WMA/WMV) file to read from" << endl;
 		cerr << "  -o <output>  Select output Wave file to write to, specify \"-\" for STDOUT" << endl;
 		cerr << "  -f           Force overwrite of output file (if already exists)" << endl;
-		cerr << "  -r           Output \"raw\" PCM data to file instead of Wave/RIFF file\n" << endl;
+		cerr << "  -r           Output \"raw\" PCM data to file instead of Wave/RIFF file" << endl;
+		cerr << "  -s           Silent mode, do not display progress indicator\n" << endl;
 		return 1;
 	}
 
@@ -221,8 +226,9 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	if((duration = wmaReader->getDuration()) > 0.0)
 	{
-		cerr << "fDuration: " << duration << endl;
-		samplesTotal = static_cast<unsigned int>(static_cast<double>(format.nSamplesPerSec) * duration);
+		double duration_minutes, duration_seconds;
+		seconds_to_minutes(duration, &duration_minutes, &duration_seconds);
+		printf("fDuration: %.0f:%04.1f\n", duration_minutes, duration_seconds);
 	}
 	
 	if((bufferLen = wmaReader->getSampleSize()) < 1)
@@ -251,28 +257,40 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	cerr << "OK\n" << endl;
 
+	if(silentMode)
+	{
+		cerr << "Dumping audio samples to file, please be patient..." << flush;
+	}
+
 	bufferLen = ((bufferLen / 4096) + 1) * 4096;
 	buffer = new BYTE[bufferLen];
-	bytesPerSample = (format.wBitsPerSample * format.nChannels) / 8;
 
 	while(true)
 	{
-		if(!indicator)
+		if((!indicator) && (!silentMode))
 		{
-			if(samplesTotal > 0)
+			if(duration > 0.0)
 			{
-				double completed = (static_cast<double>(samplesCurrent) / static_cast<double>(samplesTotal)) * 100.0;
-				fprintf(stderr, "\r[%5.1f%%] %I64u of %I64u samples completed...", min(100.0, completed), samplesCurrent, max(samplesTotal, samplesCurrent));
+				double completed = min((currentTime / duration) * 100.0, 100.0);
+				double currentTime_minutes, currentTime_seconds, duration_minutes, duration_seconds;
+				seconds_to_minutes(currentTime, &currentTime_minutes, &currentTime_seconds);
+				seconds_to_minutes(duration, &duration_minutes, &duration_seconds);
+				fprintf(stderr, "\r[%3.1f%%] %.0f:%04.1f of %.0f:%04.1f completed, please wait...", completed, currentTime_minutes, currentTime_seconds, duration_minutes, duration_seconds);
 			}
 			else
 			{
-				fprintf(stderr, "\r%I64u samples completed...", samplesCurrent); \
+				double currentTime_minutes, currentTime_seconds;
+				seconds_to_minutes(currentTime, &currentTime_minutes, &currentTime_seconds);
+				fprintf(stderr, "\r%.0f:%04.1f seconds completed so far...", currentTime_minutes, currentTime_seconds);
 			}
 		}
 		
 		indicator = (indicator + 1 ) % 10;
+		
+		double sampleDuration = -1.0;
+		double sampleTimestamp = -1.0;
 
-		if(!wmaReader->getNextSample(buffer, &sampleLen))
+		if(!wmaReader->getNextSample(buffer, &sampleLen, &sampleTimestamp, &sampleDuration))
 		{
 			cerr << "\n\nFailed to read sample from input file!" << endl;
 			fclose(writer);
@@ -283,7 +301,12 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		
 		if(!(sampleLen > 0))
 		{
-			fprintf(stderr, "\r[%5.1f%%] %I64u of %I64u samples completed...", 100.0, samplesCurrent, samplesCurrent);
+			if(!silentMode)
+			{
+				double currentTime_minutes, currentTime_seconds;
+				seconds_to_minutes(currentTime, &currentTime_minutes, &currentTime_seconds);
+				fprintf(stderr, "\r[%3.1f%%] %.0f:%04.1f of %.0f:%04.1f completed, please wait...", 100.0, currentTime_minutes, currentTime_seconds, currentTime_minutes, currentTime_seconds);
+			}
 			cerr << "\n\nAll done." << endl;
 			break;
 		}
@@ -297,8 +320,30 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			return 9;
 		}
 
-		bytesWritten += sampleLen;
-		samplesCurrent = bytesWritten / bytesPerSample;
+		if((sampleTimestamp >= 0.0) && (abs(sampleTimestamp - currentTime) > 0.00101) && (!silentMode))
+		{
+			cerr << "\rInconsistent timestamps: expected " << currentTime << ", but got " << sampleTimestamp << "." << endl;
+			if(sampleTimestamp > currentTime)
+			{
+				cerr << "There is a \"gap\" of " << (sampleTimestamp - currentTime) << " seconds between the samples!\n" << endl;
+			}
+			else
+			{
+				cerr << "The samples \"overlap\" for " << (currentTime - sampleTimestamp) << " seconds!\n" << endl;
+			}
+		}
+
+		if(sampleDuration >= 0.0)
+		{
+			if(sampleTimestamp >= 0.0)
+			{
+				currentTime = sampleTimestamp + sampleDuration;
+			}
+			else 
+			{
+				currentTime += sampleDuration;
+			}
+		}
 	}
 
 	fclose(writer);
