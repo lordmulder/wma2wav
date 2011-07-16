@@ -91,10 +91,12 @@
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="Utils.h" />
     <ClInclude Include="WmaReader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="Utils.cpp" />
     <ClCompile Include="wma2wav.cpp" />
     <ClCompile Include="WmaReader.cpp" />
   </ItemGroup>

@@ -20,7 +20,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
+
 #include "WmaReader.h"
+#include "Utils.h"
+
 #include <Objbase.h>
 #include <io.h>
 
@@ -28,10 +31,93 @@ using namespace std;
 
 // ----------------------------------------------------------------------------------------------------------
 
+static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput)
+{
+	*inputFile = NULL;
+	*outputFile = NULL;
+	*overwrite = false;
+	*rawOutput = false;
+	char *temp = NULL;
+
+	for(int i = 1; i < argc; i++)
+	{
+		if(!_wcsicmp(argv[i], L"-i"))
+		{
+			if(i < (argc - 1))
+			{
+				*inputFile = argv[++i];
+				continue;
+			}
+			else
+			{
+				if(temp = utf16_to_utf8(argv[i]))
+				{
+					fprintf(stderr, "Argument missing for command-line option:\n%s\n\n", temp);
+					SAFE_DELETE_ARRAY(temp);
+				}
+				return false;
+			}
+		}
+		if(!_wcsicmp(argv[i], L"-o"))
+		{
+			if(i < (argc - 1))
+			{
+				*outputFile = argv[++i];
+				continue;
+			}
+			else
+			{
+				if(temp = utf16_to_utf8(argv[i]))
+				{
+					fprintf(stderr, "Argument missing for command-line option:\n%s\n\n", temp);
+					SAFE_DELETE_ARRAY(temp);
+				}
+				return false;
+			}
+		}
+		if(!_wcsicmp(argv[i], L"-f"))
+		{
+			*overwrite = true;
+			continue;
+		}
+		if(!_wcsicmp(argv[i], L"-r"))
+		{
+			*rawOutput = true;
+			continue;
+		}
+		
+		if(temp = utf16_to_utf8(argv[i]))
+		{
+			fprintf(stderr, "Unknown command-line option:\n%s\n\n", temp);
+			SAFE_DELETE_ARRAY(temp);
+		}
+
+		return false;
+	}
+
+	if(!((*inputFile) && (*outputFile)))
+	{
+		cerr << "Input and/or output file not specified!\n" << endl;
+		return false;
+	}
+
+	if((!_wcsicmp(*outputFile, L"-")) && (!(*rawOutput)))
+	{
+		cerr << "Output to STDOUT requires \"raw\" mode -> switching to \"raw\" mode!\n" << endl;
+		*rawOutput = true;
+	}
+
+	return true;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+
 static int wma2wav(int argc, _TCHAR* argv[])
 {
-	cerr << "wma2wav - Dump WMA files to Wave Audio [" __DATE__ "]" << endl;
-	cerr << "Copyright (c) 2011 by LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved." << endl;
+	repair_standard_streams();
+	
+	cerr << "wma2wav - Dump WMA/WMV files to Wave Audio [" __DATE__ "]" << endl;
+	cerr << "Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved." << endl;
 	cerr << "Released under the terms of the GNU General Public License.\n" << endl;
 
 	CWmaReader *wmaReader = NULL;
@@ -49,11 +135,25 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	wchar_t *inputFile = NULL;
 	wchar_t *outputFile = NULL;
 	FILE *writer = NULL;
+	bool overwriteFlag = false;
+	bool rawOutput = false;
+	char *temp = NULL;
 
-	if(argc < 3)
+	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput))
 	{
 		cerr << "Usage:" << endl;
-		cerr << "  wma2wav.exe <input.wma> <output.pcm>\n" << endl;
+		cerr << "  wma2wav.exe [options] -i <input> -o <output>\n" << endl;
+		cerr << "Options:" << endl;
+		cerr << "  -i <input>   Select input ASF (WMA/WMV) file to read from" << endl;
+		cerr << "  -o <output>  Select output Wave file to write to, specify \"-\" for STDOUT" << endl;
+		cerr << "  -f           Force overwrite of output file (if already exists)" << endl;
+		cerr << "  -r           Output \"raw\" PCM data to file instead of Wave/RIFF file\n" << endl;
+		return 1;
+	}
+
+	if(!rawOutput)
+	{
+		cerr << "Wave/RIFF output not implemented yet, please use \"-r\" option for now ;-)\n" << endl;
 		return 1;
 	}
 
@@ -62,19 +162,24 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "Fatal Error: COM initialization has failed unexpectedly!" << endl;
 		_exit(-1);
 	}
-
-	inputFile = argv[1];
-	outputFile = argv[2];
-
-	wcerr << "Input file: " << inputFile << endl;
-	wcerr << "Output file: " << outputFile << L"\n" << endl;
+	
+	if(temp = utf16_to_utf8(inputFile))
+	{
+		fprintf(stderr, "Input file: %s\n", temp);
+		SAFE_DELETE_ARRAY(temp);
+	}
+	if(temp = utf16_to_utf8(outputFile))
+	{
+		fprintf(stderr, "Output file: %s\n\n", temp);
+		SAFE_DELETE_ARRAY(temp);
+	}
 	
 	if(_waccess(inputFile, 4))
 	{
 		cerr << "Input file could not be found or access denied!" << endl;
 		return 2;
 	}
-	if(_wcsicmp(outputFile, L"-"))
+	if(_wcsicmp(outputFile, L"-") && (!overwriteFlag))
 	{
 		if(!_waccess(outputFile, 4))
 		{
@@ -123,35 +228,25 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	if((bufferLen = wmaReader->getSampleSize()) < 1)
 	{
 		cerr << "\nFailed to detect maximum sample size!" << endl;
-		delete wmaReader;
+		SAFE_DELETE(wmaReader);
 		return 6;
 	}
 	
 	cerr << "nMaxSampleSize: " << bufferLen << endl;
-	cerr << "\nOpening input file... " << flush;
+	cerr << "\nOpening output file... " << flush;
 
 	if(_wcsicmp(outputFile, L"-"))
 	{
 		if(_wfopen_s(&writer, outputFile, L"wb"))
 		{
 			cerr << "Failed" << endl;
-			delete wmaReader;
+			SAFE_DELETE(wmaReader);
 			return 7;
 		}
 	}
 	else
 	{
-		int hCrtStdOut = _open_osfhandle((long) GetStdHandle(STD_OUTPUT_HANDLE), 0);
-		if(hCrtStdOut >= 0)
-		{
-			writer = _fdopen(hCrtStdOut, "w");
-		}
-		if(!(writer != NULL))
-		{
-			cerr << "Failed" << endl;
-			delete wmaReader;
-			return 7;
-		}
+		writer = stdout;
 	}
 
 	cerr << "OK\n" << endl;
@@ -181,8 +276,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		{
 			cerr << "\n\nFailed to read sample from input file!" << endl;
 			fclose(writer);
-			delete wmaReader;
-			delete [] buffer;
+			SAFE_DELETE(wmaReader);
+			SAFE_DELETE_ARRAY(buffer);
 			return 8;
 		}
 		
@@ -197,8 +292,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		{
 			cerr << "\n\nFailed to write sample to output file!" << endl;
 			fclose(writer);
-			delete wmaReader;
-			delete [] buffer;
+			SAFE_DELETE(wmaReader);
+			SAFE_DELETE_ARRAY(buffer);
 			return 9;
 		}
 
@@ -207,8 +302,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	}
 
 	fclose(writer);
-	delete wmaReader;
-	delete [] buffer;
+	SAFE_DELETE(wmaReader);
+	SAFE_DELETE_ARRAY(buffer);
 
 	return 0;
 }
@@ -220,6 +315,12 @@ static int wmain2(int argc, _TCHAR* argv[])
 	try
 	{
 		return wma2wav(argc, argv);
+	}
+	catch(std::bad_alloc err)
+	{
+		fprintf(stderr, "\nMemory allocation has failed, application will exit!\n");
+		TerminateProcess(GetCurrentProcess(), -1);
+		return -1;
 	}
 	catch(char *err)
 	{
@@ -245,7 +346,7 @@ int wmain(int argc, _TCHAR* argv[])
 	}
 	__except(1)
 	{
-		fprintf(stderr, "\nUnhandeled exception error, application will exit!\n");
+		fprintf(stderr, "\nUnhandeled system exception, application will exit!\n");
 		TerminateProcess(GetCurrentProcess(), -1);
 		return -1;
 	}
