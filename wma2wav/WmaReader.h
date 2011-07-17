@@ -37,6 +37,7 @@ public:
 	bool getFormat(WAVEFORMATEX *format);
 	size_t getSampleSize(void);
 	double getDuration(void);
+	wchar_t *getTitle(void);
 	bool getNextSample(BYTE *output, size_t *length, double *timeStamp = NULL, double *sampleDuration = NULL);
 
 private:

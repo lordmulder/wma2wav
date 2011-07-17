@@ -20,6 +20,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "WmaReader.h"
+#include "Utils.h"
 #include <Wmsdk.h>
 
 using namespace std;
@@ -227,13 +228,13 @@ double CWmaReader::getDuration(void)
 		WORD size = 0;
 		WORD stream = 0; //m_streamNum
 
-		if(pHdrInfo->GetAttributeByName(&stream, L"Duration", &dType, NULL, &size) == S_OK)
+		if(pHdrInfo->GetAttributeByName(&stream, g_wszWMDuration, &dType, NULL, &size) == S_OK)
 		{
 			if((dType == WMT_TYPE_QWORD) && (size == sizeof(QWORD)))
 			{
 				BYTE pValue[sizeof(QWORD)];
 
-				if(pHdrInfo->GetAttributeByName(&stream, L"Duration", &dType, (BYTE*)&pValue, &size) == S_OK)
+				if(pHdrInfo->GetAttributeByName(&stream, g_wszWMDuration, &dType, (BYTE*)&pValue, &size) == S_OK)
 				{
 					duration = static_cast<double>((*reinterpret_cast<QWORD*>(pValue)) / 1000) / 10000.0;
 				}
@@ -244,6 +245,47 @@ double CWmaReader::getDuration(void)
 	}
 
 	return duration;
+}
+
+wchar_t *CWmaReader::getTitle(void)
+{
+	wchar_t *title = NULL;
+
+	if(!(m_isOpen && m_isAnalyzed))
+	{
+		return false;
+	}
+	
+	IWMHeaderInfo* pHdrInfo = NULL;
+	
+	if(m_reader->QueryInterface(IID_IWMHeaderInfo,(void**)&pHdrInfo) == S_OK)
+	{
+		WMT_ATTR_DATATYPE dType;
+		WORD size = 0;
+		WORD stream = 0; //m_streamNum;
+		
+		if(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, NULL, &size) == S_OK)
+		{
+			if((dType == WMT_TYPE_STRING))
+			{
+				size_t len = (size / sizeof(wchar_t));
+				
+				if(len > 1)
+				{
+					title = new wchar_t[len];
+				
+					if(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, (BYTE*)title, &size) != S_OK)
+					{
+						SAFE_DELETE_ARRAY(title);
+					}
+				}
+			}
+		}
+		
+		pHdrInfo->Release();
+	}
+
+	return title;
 }
 
 bool CWmaReader::getFormat(WAVEFORMATEX *format)

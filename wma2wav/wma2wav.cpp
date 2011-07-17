@@ -180,6 +180,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	short aliveIndex = 0;
 	wchar_t *inputFile = NULL;
 	wchar_t *outputFile = NULL;
+	wchar_t *title = NULL;
 	size_t stats[2] = {0, 0};
 	char *temp = NULL;
 	
@@ -276,6 +277,16 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		fprintf(stderr, "fDuration: %.0f:%04.1f\n", duration_minutes, duration_seconds);
 	}
 	
+	if(title = wmaReader->getTitle())
+	{
+		if(temp = utf16_to_utf8(title))
+		{
+			fprintf(stderr, "sTitle: %s\n", temp);
+			SAFE_DELETE_ARRAY(temp);
+		}
+		SAFE_DELETE_ARRAY(title);
+	}
+
 	if((bufferLen = wmaReader->getSampleSize()) < 1)
 	{
 		cerr << "\nFailed to detect maximum sample size!" << endl;
