@@ -34,16 +34,31 @@ using namespace std;
 
 // ----------------------------------------------------------------------------------------------------------
 
-static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput, bool *silentMode, bool *aggressiveMode, bool *noCompensation, bool *alternativeMode)
+typedef struct
+{
+	bool overwriteFlag;
+	bool rawOutput;
+	bool silentMode;
+	bool aggressiveMode;
+	bool noCompensation;
+	bool alternativeMode;
+}
+param_t;
+
+static const char *alive = "|/-\\";
+
+// ----------------------------------------------------------------------------------------------------------
+
+static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, param_t *param)
 {
 	*inputFile = NULL;
 	*outputFile = NULL;
-	*overwrite = false;
-	*rawOutput = false;
-	*silentMode = false;
-	*aggressiveMode = false;
-	*noCompensation = false;
-	*alternativeMode = false;
+	param->overwriteFlag = false;
+	param->rawOutput = false;
+	param->silentMode = false;
+	param->aggressiveMode = false;
+	param->noCompensation = false;
+	param->alternativeMode = false;
 	char *temp = NULL;
 
 	for(int i = 1; i < argc; i++)
@@ -84,32 +99,32 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 		}
 		if(!_wcsicmp(argv[i], L"-f"))
 		{
-			*overwrite = true;
+			param->overwriteFlag = true;
 			continue;
 		}
 		if(!_wcsicmp(argv[i], L"-r"))
 		{
-			*rawOutput = true;
+			param->rawOutput = true;
 			continue;
 		}
 		if(!_wcsicmp(argv[i], L"-s"))
 		{
-			*silentMode = true;
+			param->silentMode = true;
 			continue;
 		}
 		if(!_wcsicmp(argv[i], L"-a"))
 		{
-			*aggressiveMode = true;
+			param->aggressiveMode = true;
 			continue;
 		}
 		if(!_wcsicmp(argv[i], L"-n"))
 		{
-			*noCompensation = true;
+			param->noCompensation = true;
 			continue;
 		}
 		if(!_wcsicmp(argv[i], L"-x"))
 		{
-			*alternativeMode = true;
+			param->alternativeMode = true;
 			continue;
 		}
 		
@@ -122,7 +137,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 		return false;
 	}
 
-	if((*noCompensation) && (*aggressiveMode))
+	if((param->noCompensation) && (param->aggressiveMode))
 	{
 		cerr << "Can not use \"-a\" and \"-n\" options at the same time!\n" << endl;
 		return false;
@@ -134,10 +149,10 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 		return false;
 	}
 
-	if((!_wcsicmp(*outputFile, L"-")) && (!(*rawOutput)))
+	if((!_wcsicmp(*outputFile, L"-")) && (!(param->rawOutput)))
 	{
 		cerr << "Output to STDOUT requires \"raw\" mode -> switching to \"raw\" mode!\n" << endl;
-		*rawOutput = true;
+		param->rawOutput = true;
 	}
 
 	return true;
@@ -153,6 +168,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	CAbstractSink *sink = NULL;
 	CWmaReader *wmaReader = NULL;
+	param_t param = {false, false, false, false, false, false};
 	WAVEFORMATEX format;
 	SecureZeroMemory(&format, sizeof(WAVEFORMATEX));
 	double duration = -1.0;
@@ -161,17 +177,13 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	size_t sampleLen = 0;
 	double currentTime = 0.0;
 	short indicator = 0;
+	short aliveIndex = 0;
 	wchar_t *inputFile = NULL;
 	wchar_t *outputFile = NULL;
-	bool overwriteFlag = false;
-	bool rawOutput = false;
-	bool silentMode = false;
-	bool aggressiveMode = false;
-	bool noCompensation = false;
-	bool alternativeMode = false;
+	size_t stats[2] = {0, 0};
 	char *temp = NULL;
-
-	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput, &silentMode, &aggressiveMode, &noCompensation, &alternativeMode))
+	
+	if(!parse_cli(argc, argv, &inputFile, &outputFile, &param))
 	{
 		cerr << "Usage:" << endl;
 		cerr << "  wma2wav.exe [options] -i <input> -o <output>\n" << endl;
@@ -187,7 +199,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		return 1;
 	}
 
-	const double maxGapSize = noCompensation ? numeric_limits<double>::infinity() : (aggressiveMode ? 0.00000001 : 0.00100001);
+	const double maxGapSize = (param.noCompensation) ? numeric_limits<double>::infinity() : ((param.aggressiveMode) ? 0.00000001 : 0.00100001);
 
 	if(CoInitializeEx(NULL, COINIT_MULTITHREADED) != S_OK)
 	{
@@ -211,7 +223,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "Input file could not be found or access denied!" << endl;
 		return 2;
 	}
-	if(_wcsicmp(outputFile, L"-") && (!overwriteFlag))
+	if(_wcsicmp(outputFile, L"-") && (!(param.overwriteFlag)))
 	{
 		if(!_waccess(outputFile, 4))
 		{
@@ -268,7 +280,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	cerr << "nMaxSampleSize: " << bufferLen << endl;
 	cerr << "\nOpening output file... " << flush;
 
-	sink = (!rawOutput) ? dynamic_cast<CAbstractSink*>(new CWaveWriter()) : dynamic_cast<CAbstractSink*>(new CRawWriter());
+	sink = (!(param.rawOutput)) ? dynamic_cast<CAbstractSink*>(new CWaveWriter()) : dynamic_cast<CAbstractSink*>(new CRawWriter());
 
 	if(!sink->open(outputFile, &format))
 	{
@@ -279,7 +291,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	cerr << "OK\n" << endl;
 
-	if(silentMode)
+	if(param.silentMode)
 	{
 		cerr << "Dumping audio samples to file, please be patient..." << flush;
 	}
@@ -290,7 +302,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	while(true)
 	{
-		if((!indicator) && (!silentMode))
+		if((!indicator) && (!(param.silentMode)))
 		{
 			if(duration > 0.0)
 			{
@@ -298,20 +310,24 @@ static int wma2wav(int argc, _TCHAR* argv[])
 				double currentTime_minutes, currentTime_seconds, duration_minutes, duration_seconds;
 				seconds_to_minutes(currentTime, &currentTime_minutes, &currentTime_seconds);
 				seconds_to_minutes(duration, &duration_minutes, &duration_seconds);
-				fprintf(stderr, "\r[%3.1f%%] %.0f:%04.1f of %.0f:%04.1f completed, please wait...", completed, currentTime_minutes, currentTime_seconds, duration_minutes, duration_seconds);
+				fprintf(stderr, "\r[%3.1f%%] %.0f:%04.1f of %.0f:%04.1f completed, please wait... %c", completed, currentTime_minutes, currentTime_seconds, duration_minutes, duration_seconds, alive[aliveIndex]);
 			}
 			else
 			{
 				double currentTime_minutes, currentTime_seconds;
 				seconds_to_minutes(currentTime, &currentTime_minutes, &currentTime_seconds);
-				fprintf(stderr, "\r%.0f:%04.1f seconds completed so far...", currentTime_minutes, currentTime_seconds);
+				fprintf(stderr, "\r%.0f:%04.1f seconds completed so far... %c", currentTime_minutes, currentTime_seconds, alive[aliveIndex]);
 			}
+			
+			aliveIndex = (aliveIndex + 1) % 4;
+			fflush(stderr);
 		}
 		
-		indicator = (indicator + 1 ) % 10;
+		indicator = (indicator + 1) % 25;
 		
 		double sampleDuration = -1.0;
 		double sampleTimestamp = -1.0;
+		size_t skipBytes = 0;
 
 		if(!wmaReader->getNextSample(buffer, &sampleLen, &sampleTimestamp, &sampleDuration))
 		{
@@ -324,37 +340,39 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		
 		if(!(sampleLen > 0))
 		{
-			if(!silentMode)
+			if(!(param.silentMode))
 			{
 				double currentTime_minutes, currentTime_seconds;
 				seconds_to_minutes(currentTime, &currentTime_minutes, &currentTime_seconds);
-				fprintf(stderr, "\r[%3.1f%%] %.0f:%04.1f of %.0f:%04.1f completed, please wait...", 100.0, currentTime_minutes, currentTime_seconds, currentTime_minutes, currentTime_seconds);
+				fprintf(stderr, "\r[%3.1f%%] %.0f:%04.1f of %.0f:%04.1f completed, please wait... %c", 100.0, currentTime_minutes, currentTime_seconds, currentTime_minutes, currentTime_seconds, alive[aliveIndex]);
+				fflush(stderr);
 			}
 			break;
 		}
 
 		if((sampleTimestamp >= 0.0) && (abs(sampleTimestamp - currentTime) > maxGapSize))
 		{
-			if(!silentMode)
+			if(!(param.silentMode))
 			{
 				fprintf(stderr, "\rInconsistent timestamps: expected %10.8f, but got %10.8f.\n", currentTime, sampleTimestamp);
 			}
 
 			if(sampleTimestamp > currentTime)
 			{
-				size_t paddingBytes = static_cast<size_t>(floor((sampleTimestamp - currentTime) * static_cast<double>(format.nSamplesPerSec))) * (format.wBitsPerSample / 8) * format.nChannels;
+				size_t paddingBytes = time_to_bytes((sampleTimestamp - currentTime), &format);
 				
 				if(paddingBytes > 0)
 				{
 					BYTE zeroBuffer[1024];
 					SecureZeroMemory(zeroBuffer, 1024);
 
-					if(!silentMode)
+					if(!(param.silentMode))
 					{
-						fprintf(stderr, "There is a \"gap\" of %10.8f seconds, padding %I64u zero bytes!\n\n", (sampleTimestamp - currentTime), static_cast<unsigned __int64>(paddingBytes));
+						fprintf(stderr, "There is a \"gap\" of %10.8f seconds, padding %I64u zero bytes!\n", (sampleTimestamp - currentTime), static_cast<unsigned __int64>(paddingBytes));
 					}
 
-					currentTime += (static_cast<double>(paddingBytes / (format.wBitsPerSample / 8) / format.nChannels) / static_cast<double>(format.nSamplesPerSec));
+					currentTime += bytes_to_time(paddingBytes, &format);
+					stats[0] += paddingBytes;
 
 					while(paddingBytes > 0)
 					{
@@ -373,16 +391,24 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			}
 			else
 			{
-				if(!silentMode)
+				size_t offsetBytes = time_to_bytes((currentTime - sampleTimestamp), &format);
+				
+				if(offsetBytes > 0)
 				{
-					fprintf(stderr, "The samples \"overlap\" for %10.8f seconds, can't correct!\n\n", (currentTime - sampleTimestamp));
-				}
+					skipBytes = min(offsetBytes, sampleLen);
+					stats[1] += skipBytes;
 
-				currentTime -= (currentTime - sampleTimestamp);
+					if(!(param.silentMode))
+					{
+						fprintf(stderr, "The samples \"overlap\" for %10.8f seconds, skipping %I64u bytes!\n", (currentTime - sampleTimestamp), static_cast<unsigned __int64>(skipBytes));
+					}
+
+					currentTime -= bytes_to_time(skipBytes, &format);
+				}
 			}
 		}
 
-		if(!sink->write(sampleLen, buffer))
+		if(!sink->write((sampleLen - skipBytes), (buffer + skipBytes)))
 		{
 			cerr << "\n\nFailed to write sample to output file!" << endl;
 			SAFE_DELETE(sink);
@@ -393,7 +419,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 		if(sampleDuration >= 0.0)
 		{
-			if((sampleTimestamp >= 0.0) && (!alternativeMode))
+			if((sampleTimestamp >= 0.0) && (!(param.alternativeMode)))
 			{
 				currentTime = sampleTimestamp + sampleDuration;
 			}
@@ -411,6 +437,12 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		SAFE_DELETE(sink);
 		SAFE_DELETE_ARRAY(buffer);
 		return 10;
+	}
+
+	
+	if((stats[0] > 0) || (stats[1] > 0))
+	{
+		cerr << "\nWarning: Sync correction inserted " << stats[0] << " zero bytes, skipped " << stats[1] << " bytes." << flush;
 	}
 
 	cerr << "\n\nAll done." << endl;

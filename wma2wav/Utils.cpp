@@ -81,3 +81,14 @@ void seconds_to_minutes(double seconds, double *minutes_part, double *seconds_pa
 	*minutes_part = _minutes;
 	*seconds_part = _seconds * 60.0;
 }
+
+size_t time_to_bytes(double time, WAVEFORMATEX *format)
+{
+	return static_cast<size_t>(ROUND(time * static_cast<double>(format->nSamplesPerSec))) * (format->wBitsPerSample / 8) * format->nChannels;
+}
+
+double bytes_to_time(size_t bytes, WAVEFORMATEX *format)
+{
+	return static_cast<double>(bytes / (format->wBitsPerSample / 8) / format->nChannels) / static_cast<double>(format->nSamplesPerSec);
+}
+
