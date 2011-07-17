@@ -45,6 +45,7 @@ typedef struct
 }
 param_t;
 
+static bool com_initialized = false;
 static const char *alive = "|/-\\";
 
 // ----------------------------------------------------------------------------------------------------------
@@ -137,15 +138,23 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 		return false;
 	}
 
-	if((param->noCompensation) && (param->aggressiveMode))
+	if(param->noCompensation)
 	{
-		cerr << "Can not use \"-a\" and \"-n\" options at the same time!\n" << endl;
-		return false;
+		if(param->aggressiveMode)
+		{
+			cerr << "Error: Can not use \"-a\" and \"-n\" options at the same time!\n" << endl;
+			return false;
+		}
+		if(param->alternativeMode)
+		{
+			cerr << "Error: Can not use \"-x\" and \"-n\" options at the same time!\n" << endl;
+			return false;
+		}
 	}
 	
 	if(!((*inputFile) && (*outputFile)))
 	{
-		cerr << "Input and/or output file not specified!\n" << endl;
+		cerr << "Error: Input and/or output file not specified!\n" << endl;
 		return false;
 	}
 
@@ -194,9 +203,11 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -f           Force overwrite of output file (if already exists)" << endl;
 		cerr << "  -r           Output \"raw\" PCM data to file instead of Wave/RIFF file" << endl;
 		cerr << "  -s           Silent mode, do not display progress indicator" << endl;
-		cerr << "  -a           Enable the \"aggressive\" gap compensation/padding mode" << endl;
-		cerr << "  -n           No gap compensation/padding (can not use with \"-a\")" << endl;
-		cerr << "  -x           Use alternative timestamp calculation mode (experimental)\n" << endl;
+		cerr << "  -a           Enable \"aggressive\" sync correction mode (not recommended)" << endl;
+		cerr << "  -x           Use \"alternative\" timestamp calculation mode (experimental)" << endl;
+		cerr << "  -n           No sync correction (can not use with '-a' or '-x')\n" << endl;
+		cerr << "Example:" << endl;
+		cerr << "  wma2wav.exe \"c:\\my music\\input.wma\" \"c:\\temp\\output.wav\"\n" << endl;
 		return 1;
 	}
 
@@ -208,27 +219,36 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		_exit(-1);
 	}
 	
+	com_initialized = true;
+
 	if(temp = utf16_to_utf8(inputFile))
 	{
 		fprintf(stderr, "Input file: %s\n", temp);
 		SAFE_DELETE_ARRAY(temp);
 	}
-	if(temp = utf16_to_utf8(outputFile))
+	if(_wcsicmp(outputFile, L"-"))
 	{
-		fprintf(stderr, "Output file: %s\n\n", temp);
-		SAFE_DELETE_ARRAY(temp);
+		if(temp = utf16_to_utf8(outputFile))
+		{
+			fprintf(stderr, "Output file: %s\n\n", temp);
+			SAFE_DELETE_ARRAY(temp);
+		}
+	}
+	else
+	{
+		fprintf(stderr, "Output file: <STDOUT>\n\n");
 	}
 	
 	if(_waccess(inputFile, 4))
 	{
-		cerr << "Input file could not be found or access denied!" << endl;
+		cerr << "Error: Input file could not be found or access denied!" << endl;
 		return 2;
 	}
-	if(_wcsicmp(outputFile, L"-") && (!(param.overwriteFlag)))
+	if(_wcsicmp(outputFile, L"-") && _wcsicmp(outputFile, L"NUL") && (!(param.overwriteFlag)))
 	{
 		if(!_waccess(outputFile, 4))
 		{
-			cerr << "Output file already exists, will NOT overwrite!" << endl;
+			cerr << "Error: Output file already exists, will NOT overwrite!" << endl;
 			return 3;
 		}
 	}
@@ -361,7 +381,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			{
 				double currentTime_minutes, currentTime_seconds;
 				seconds_to_minutes(currentTime, &currentTime_minutes, &currentTime_seconds);
-				fprintf(stderr, "\r[%3.1f%%] %.0f:%04.1f of %.0f:%04.1f completed, please wait... %c", 100.0, currentTime_minutes, currentTime_seconds, currentTime_minutes, currentTime_seconds, alive[aliveIndex]);
+				fprintf(stderr, "\r[%3.1f%%] %.0f:%04.1f of %.0f:%04.1f completed, please wait... %c", 100.0, currentTime_minutes, currentTime_seconds, currentTime_minutes, currentTime_seconds, 0x20);
 				fflush(stderr);
 			}
 			break;
@@ -371,7 +391,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		{
 			if(!(param.silentMode))
 			{
-				fprintf(stderr, "\rInconsistent timestamps: expected %10.8f, but got %10.8f.\n", currentTime, sampleTimestamp);
+				fprintf(stderr, "\rInconsistent timestamps: Expected %10.8f next, but got %10.8f.\n", currentTime, sampleTimestamp);
 			}
 
 			if(sampleTimestamp > currentTime)
@@ -449,7 +469,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	if(!sink->close())
 	{
-		cerr << "\n\nError: Failed to properly close output file!" << endl;
+		cerr << "\n\nError: Failed to properly close the output file!" << endl;
 		SAFE_DELETE(wmaReader);
 		SAFE_DELETE(sink);
 		SAFE_DELETE_ARRAY(buffer);
@@ -477,7 +497,9 @@ static int wmain2(int argc, _TCHAR* argv[])
 {
 	try
 	{
-		return wma2wav(argc, argv);
+		int result = wma2wav(argc, argv);
+		SAFE_COM_UNINIT(com_initialized);
+		return result;
 	}
 	catch(std::bad_alloc err)
 	{
@@ -502,7 +524,6 @@ int wmain(int argc, _TCHAR* argv[])
 	{
 		repair_standard_streams();
 		int result = wmain2(argc, argv);
-		CoUninitialize();
 		restore_previous_codepage();
 		return result;
 	}

@@ -29,7 +29,7 @@ void seconds_to_minutes(double seconds, double *minutes_part, double *seconds_pa
 size_t time_to_bytes(double time, WAVEFORMATEX *format);
 double bytes_to_time(size_t bytes, WAVEFORMATEX *format);
 
-
 #define SAFE_DELETE(PTR) if(PTR) { delete PTR; PTR = NULL; }
 #define SAFE_DELETE_ARRAY(PTR) if(PTR) { delete [] PTR; PTR = NULL; }
+#define SAFE_COM_UNINIT(FLAG) if(FLAG) { CoUninitialize(); FLAG = false; }
 #define ROUND(F) (((F) >= 0.0) ? floor((F) + 0.5) : ceil((F) - 0.5))
