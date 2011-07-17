@@ -1,0 +1,8 @@
+*.txt
+*.bat
+*.src
+*.sln
+wma2wav\*.cpp
+wma2wav\*.h
+wma2wav\*.vcxproj
+wma2wav\*.vcxproj.filters

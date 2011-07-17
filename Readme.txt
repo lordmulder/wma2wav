@@ -2,6 +2,8 @@ wma2wav - Dump WMA/WMV files to Wave Audio [Jul 17 2011]
 Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved.
 Released under the terms of the GNU General Public License.
 
+http://code.google.com/p/mulder/
+
 
 Usage Instructions
 ------------------
@@ -17,6 +19,7 @@ Options:
   -s           Silent mode, do not display progress indicator
   -a           Enable the "aggressive" gap compensation/padding mode
   -n           No gap compensation/padding (can not use with "-a")
+  -x           Use alternative timestamp calculation mode (experimental)
 
 
 Prerequisites
