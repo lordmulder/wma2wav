@@ -68,8 +68,8 @@ void repair_standard_streams(void)
 		if(hfStderr) *stderr = *hfStderr;
 	}
 
-	setvbuf(stdout, NULL, _IONBF, 0);
-	setvbuf(stderr, NULL, _IONBF, 0);
+	//setvbuf(stdout, NULL, _IONBF, 0);
+	//setvbuf(stderr, NULL, _IONBF, 0);
 }
 
 void restore_previous_codepage(void)
