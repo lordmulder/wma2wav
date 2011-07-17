@@ -34,7 +34,7 @@ using namespace std;
 
 // ----------------------------------------------------------------------------------------------------------
 
-static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput, bool *silentMode, bool *aggressiveMode, bool *noCompensation)
+static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, bool *overwrite, bool *rawOutput, bool *silentMode, bool *aggressiveMode, bool *noCompensation, bool *alternativeMode)
 {
 	*inputFile = NULL;
 	*outputFile = NULL;
@@ -43,6 +43,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 	*silentMode = false;
 	*aggressiveMode = false;
 	*noCompensation = false;
+	*alternativeMode = false;
 	char *temp = NULL;
 
 	for(int i = 1; i < argc; i++)
@@ -106,6 +107,11 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 			*noCompensation = true;
 			continue;
 		}
+		if(!_wcsicmp(argv[i], L"-x"))
+		{
+			*alternativeMode = true;
+			continue;
+		}
 		
 		if(temp = utf16_to_utf8(argv[i]))
 		{
@@ -141,8 +147,6 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 
 static int wma2wav(int argc, _TCHAR* argv[])
 {
-	repair_standard_streams();
-
 	cerr << "wma2wav - Dump WMA/WMV files to Wave Audio [" __DATE__ "]" << endl;
 	cerr << "Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved." << endl;
 	cerr << "Released under the terms of the GNU General Public License.\n" << endl;
@@ -164,9 +168,10 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	bool silentMode = false;
 	bool aggressiveMode = false;
 	bool noCompensation = false;
+	bool alternativeMode = false;
 	char *temp = NULL;
 
-	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput, &silentMode, &aggressiveMode, &noCompensation))
+	if(!parse_cli(argc, argv, &inputFile, &outputFile, &overwriteFlag, &rawOutput, &silentMode, &aggressiveMode, &noCompensation, &alternativeMode))
 	{
 		cerr << "Usage:" << endl;
 		cerr << "  wma2wav.exe [options] -i <input> -o <output>\n" << endl;
@@ -177,7 +182,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -r           Output \"raw\" PCM data to file instead of Wave/RIFF file" << endl;
 		cerr << "  -s           Silent mode, do not display progress indicator" << endl;
 		cerr << "  -a           Enable the \"aggressive\" gap compensation/padding mode" << endl;
-		cerr << "  -n           No gap compensation/padding (can not use with \"-a\")\n" << endl;
+		cerr << "  -n           No gap compensation/padding (can not use with \"-a\")" << endl;
+		cerr << "  -x           Use alternative timestamp calculation mode (experimental)\n" << endl;
 		return 1;
 	}
 
@@ -336,7 +342,9 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 			if(sampleTimestamp > currentTime)
 			{
-				SecureZeroMemory(buffer, bufferLen);
+				BYTE zeroBuffer[1024];
+				SecureZeroMemory(zeroBuffer, 1024);
+
 				size_t paddingBytes = static_cast<size_t>(floor((sampleTimestamp - currentTime) * static_cast<double>(format.nSamplesPerSec))) * (format.wBitsPerSample / 8) * format.nChannels;
 				
 				if(paddingBytes > 0)
@@ -348,8 +356,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 					while(paddingBytes > 0)
 					{
-						size_t currentSize = min(paddingBytes, bufferLen);
-						if(!sink->write(currentSize, buffer))
+						size_t currentSize = min(paddingBytes, 1024);
+						if(!sink->write(currentSize, zeroBuffer))
 						{
 							cerr << "\n\nFailed to write sample to output file!" << endl;
 							SAFE_DELETE(sink);
@@ -381,7 +389,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 		if(sampleDuration >= 0.0)
 		{
-			if(sampleTimestamp >= 0.0)
+			if((sampleTimestamp >= 0.0) && (!alternativeMode))
 			{
 				currentTime = sampleTimestamp + sampleDuration;
 			}
@@ -421,19 +429,16 @@ static int wmain2(int argc, _TCHAR* argv[])
 	catch(std::bad_alloc err)
 	{
 		fprintf(stderr, "\nMemory allocation has failed, application will exit!\n");
-		TerminateProcess(GetCurrentProcess(), -1);
 		return -1;
 	}
 	catch(char *err)
 	{
 		fprintf(stderr, "\n%s\n", err);
-		TerminateProcess(GetCurrentProcess(), -1);
 		return -1;
 	}
 	catch(...)
 	{
 		fprintf(stderr, "\nUnhandeled exception error, application will exit!\n");
-		TerminateProcess(GetCurrentProcess(), -1);
 		return -1;
 	}
 }
@@ -442,8 +447,10 @@ int wmain(int argc, _TCHAR* argv[])
 {
 	__try
 	{
+		repair_standard_streams();
 		int result = wmain2(argc, argv);
 		CoUninitialize();
+		restore_previous_codepage();
 		return result;
 	}
 	__except(1)

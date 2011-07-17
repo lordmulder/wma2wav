@@ -22,6 +22,8 @@
 #include "utils.h"
 #include <io.h>
 
+static UINT old_cp = CP_ACP;
+
 char *utf16_to_utf8(const wchar_t *input)
 {
 	char *Buffer;
@@ -48,6 +50,7 @@ wchar_t *utf8_to_utf16(const char *input)
 
 void repair_standard_streams(void)
 {
+	old_cp = GetConsoleOutputCP();
 	SetConsoleOutputCP(CP_UTF8);
 
 	int hCrtStdOut = _open_osfhandle((long) GetStdHandle(STD_OUTPUT_HANDLE), 0);
@@ -66,9 +69,13 @@ void repair_standard_streams(void)
 	}
 }
 
+void restore_previous_codepage(void)
+{
+	SetConsoleOutputCP(old_cp);
+}
+
 void seconds_to_minutes(double seconds, double *minutes_part, double *seconds_part)
 {
-	
 	double _minutes = 0.0;
 	double _seconds = modf((seconds / 60.0), &_minutes);
 	*minutes_part = _minutes;

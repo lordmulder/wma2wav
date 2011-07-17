@@ -24,6 +24,7 @@
 char *utf16_to_utf8(const wchar_t *input);
 wchar_t *utf8_to_utf16(const char *input);
 void repair_standard_streams(void);
+void restore_previous_codepage(void);
 void seconds_to_minutes(double seconds, double *minutes_part, double *seconds_part);
 
 #define SAFE_DELETE(PTR) if(PTR) { delete PTR; PTR = NULL; }
