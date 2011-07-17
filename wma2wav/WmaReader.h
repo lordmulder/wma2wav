@@ -30,6 +30,7 @@ public:
 	CWmaReader(void);
 	~CWmaReader(void);
 
+	bool isProtected(const wchar_t *filename);
 	bool open(const wchar_t *filename);
 	void close(void);
 	bool analyze(void);

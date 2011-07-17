@@ -235,6 +235,12 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	wmaReader = new CWmaReader();
 	cerr << "Opening input file... " << flush;
 
+	if(wmaReader->isProtected(inputFile))
+	{
+		cerr << "Failed\n\nSorry, DRM infected ASF (WMA/WMV) files can not be processed!" << endl;
+		SAFE_DELETE(wmaReader);
+		return 4;
+	}
 	if(!wmaReader->open(inputFile))
 	{
 		cerr << "Failed\n\nMake sure that the input file is a valid ASF (WMA/WMV) file!" << endl;

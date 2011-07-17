@@ -25,6 +25,7 @@
 using namespace std;
 
 typedef HRESULT (__stdcall *WMCreateSyncReaderProc)(IUnknown* pUnkCert, DWORD dwRights, IWMSyncReader **ppSyncReader);
+typedef HRESULT (__stdcall *WMIsContentProtectedProc)(const WCHAR *pwszFileName, BOOL *pfIsProtected);
 
 #define LOAD_LIBRARY_SEARCH_SYSTEM32 0x00000800
 
@@ -38,7 +39,7 @@ CWmaReader::CWmaReader(void)
 	m_outputNum = -1;
 	m_streamNum = -1;
 
-	HMODULE m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
+	m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
 	if(!(m_wmvCore != NULL))
 	{
 		throw "Fatal Error: Failed to load WMVCORE.DLL libraray!";
@@ -74,6 +75,36 @@ CWmaReader::~CWmaReader(void)
 		FreeLibrary(m_wmvCore);
 		m_wmvCore = NULL;
 	}
+}
+
+bool CWmaReader::isProtected(const wchar_t *filename)
+{
+	WMIsContentProtectedProc pWMIsContentProtected = reinterpret_cast<WMIsContentProtectedProc>(GetProcAddress(m_wmvCore, "WMIsContentProtected"));	
+
+	if(!(pWMIsContentProtected != NULL))
+	{
+		return false;
+	}
+
+	BOOL flag = FALSE;
+	bool isProtected = true;
+		
+	HRESULT result = pWMIsContentProtected(filename, &flag);
+
+	switch(result)
+	{
+	case S_FALSE:
+		isProtected = false;
+		break;
+	case S_OK:
+		isProtected = (flag == TRUE);
+		break;
+	default:
+		isProtected = false;
+		break;
+	}
+
+	return isProtected;
 }
 
 bool CWmaReader::open(const wchar_t *filename)
