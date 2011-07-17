@@ -204,7 +204,7 @@ double CWmaReader::getDuration(void)
 
 				if(pHdrInfo->GetAttributeByName(&stream, L"Duration", &dType, (BYTE*)&pValue, &size) == S_OK)
 				{
-					duration = static_cast<double>(*reinterpret_cast<QWORD*>(pValue)) / 10000000.0;
+					duration = static_cast<double>((*reinterpret_cast<QWORD*>(pValue)) / 1000) / 10000.0;
 				}
 			}
 		}
@@ -285,8 +285,8 @@ bool CWmaReader::getNextSample(BYTE *output, size_t *length, double *timeStamp, 
 	memcpy(output, bufferPtr, bufferLen);
 	*length = bufferLen;
 	
-	if(timeStamp) *timeStamp = static_cast<double>(time) / 10000000.0;
-	if(sampleDuration) *sampleDuration = static_cast<double>(duration) / 10000000.0;
+	if(timeStamp) *timeStamp = static_cast<double>(time / 1000) / 10000.0;
+	if(sampleDuration) *sampleDuration = static_cast<double>(duration / 1000) / 10000.0;
 	
 	buffer->Release();
 	return true;

@@ -342,17 +342,19 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 			if(sampleTimestamp > currentTime)
 			{
-				BYTE zeroBuffer[1024];
-				SecureZeroMemory(zeroBuffer, 1024);
-
 				size_t paddingBytes = static_cast<size_t>(floor((sampleTimestamp - currentTime) * static_cast<double>(format.nSamplesPerSec))) * (format.wBitsPerSample / 8) * format.nChannels;
 				
 				if(paddingBytes > 0)
 				{
+					BYTE zeroBuffer[1024];
+					SecureZeroMemory(zeroBuffer, 1024);
+
 					if(!silentMode)
 					{
 						fprintf(stderr, "There is a \"gap\" of %10.8f seconds, padding %I64u zero bytes!\n\n", (sampleTimestamp - currentTime), static_cast<unsigned __int64>(paddingBytes));
 					}
+
+					currentTime += (static_cast<double>(paddingBytes / (format.wBitsPerSample / 8) / format.nChannels) / static_cast<double>(format.nSamplesPerSec));
 
 					while(paddingBytes > 0)
 					{
@@ -365,7 +367,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 							SAFE_DELETE_ARRAY(buffer);
 							return 9;
 						}
-						paddingBytes = paddingBytes - currentSize;
+						paddingBytes -= currentSize;
 					}
 				}
 			}
@@ -375,6 +377,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 				{
 					fprintf(stderr, "The samples \"overlap\" for %10.8f seconds, can't correct!\n\n", (currentTime - sampleTimestamp));
 				}
+
+				currentTime -= (currentTime - sampleTimestamp);
 			}
 		}
 
