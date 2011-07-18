@@ -42,6 +42,9 @@ typedef struct
 	bool aggressiveMode;
 	bool noCompensation;
 	bool alternativeMode;
+	wchar_t *inputFile;
+	wchar_t *outputFile;
+	wchar_t *title;
 }
 param_t;
 
@@ -50,10 +53,10 @@ static const char *alive = "|/-\\";
 
 // ----------------------------------------------------------------------------------------------------------
 
-static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **outputFile, param_t *param)
+static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 {
-	*inputFile = NULL;
-	*outputFile = NULL;
+	param->inputFile = NULL;
+	param->outputFile = NULL;
 	param->overwriteFlag = false;
 	param->rawOutput = false;
 	param->silentMode = false;
@@ -68,7 +71,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 		{
 			if(i < (argc - 1))
 			{
-				*inputFile = argv[++i];
+				param->inputFile = argv[++i];
 				continue;
 			}
 			else
@@ -85,7 +88,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 		{
 			if(i < (argc - 1))
 			{
-				*outputFile = argv[++i];
+				param->outputFile = argv[++i];
 				continue;
 			}
 			else
@@ -152,13 +155,13 @@ static bool parse_cli(int argc, _TCHAR* argv[], wchar_t **inputFile, wchar_t **o
 		}
 	}
 	
-	if(!((*inputFile) && (*outputFile)))
+	if(!((param->inputFile) && (param->outputFile)))
 	{
 		cerr << "Error: Input and/or output file not specified!\n" << endl;
 		return false;
 	}
 
-	if((!_wcsicmp(*outputFile, L"-")) && (!(param->rawOutput)))
+	if((!_wcsicmp(param->outputFile, L"-")) && (!(param->rawOutput)))
 	{
 		cerr << "Output to STDOUT requires \"raw\" mode -> switching to \"raw\" mode!\n" << endl;
 		param->rawOutput = true;
@@ -177,7 +180,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	CAbstractSink *sink = NULL;
 	CWmaReader *wmaReader = NULL;
-	param_t param = {false, false, false, false, false, false};
+	param_t param;
+	SecureZeroMemory(&param, sizeof(param_t));
 	WAVEFORMATEX format;
 	SecureZeroMemory(&format, sizeof(WAVEFORMATEX));
 	double duration = -1.0;
@@ -187,13 +191,10 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	double currentTime = 0.0;
 	short indicator = 0;
 	short aliveIndex = 0;
-	wchar_t *inputFile = NULL;
-	wchar_t *outputFile = NULL;
-	wchar_t *title = NULL;
 	size_t stats[2] = {0, 0};
 	char *temp = NULL;
 	
-	if(!parse_cli(argc, argv, &inputFile, &outputFile, &param))
+	if(!parse_cli(argc, argv, &param))
 	{
 		cerr << "Usage:" << endl;
 		cerr << "  wma2wav.exe [options] -i <input> -o <output>\n" << endl;
@@ -203,8 +204,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -f           Force overwrite of output file (if already exists)" << endl;
 		cerr << "  -r           Output \"raw\" PCM data to file instead of Wave/RIFF file" << endl;
 		cerr << "  -s           Silent mode, do not display progress indicator" << endl;
+		cerr << "  -x           Use the \"alternative\" timestamp calculation mode" << endl;
 		cerr << "  -a           Enable \"aggressive\" sync correction mode (not recommended)" << endl;
-		cerr << "  -x           Use \"alternative\" timestamp calculation mode (experimental)" << endl;
 		cerr << "  -n           No sync correction (can not use with '-a' or '-x')\n" << endl;
 		cerr << "Example:" << endl;
 		cerr << "  wma2wav.exe \"c:\\my music\\input.wma\" \"c:\\temp\\output.wav\"\n" << endl;
@@ -221,14 +222,14 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	
 	com_initialized = true;
 
-	if(temp = utf16_to_utf8(inputFile))
+	if(temp = utf16_to_utf8(param.inputFile))
 	{
 		fprintf(stderr, "Input file: %s\n", temp);
 		SAFE_DELETE_ARRAY(temp);
 	}
-	if(_wcsicmp(outputFile, L"-"))
+	if(_wcsicmp(param.outputFile, L"-"))
 	{
-		if(temp = utf16_to_utf8(outputFile))
+		if(temp = utf16_to_utf8(param.outputFile))
 		{
 			fprintf(stderr, "Output file: %s\n\n", temp);
 			SAFE_DELETE_ARRAY(temp);
@@ -239,14 +240,14 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		fprintf(stderr, "Output file: <STDOUT>\n\n");
 	}
 	
-	if(_waccess(inputFile, 4))
+	if(_waccess(param.inputFile, 4))
 	{
 		cerr << "Error: Input file could not be found or access denied!" << endl;
 		return 2;
 	}
-	if(_wcsicmp(outputFile, L"-") && _wcsicmp(outputFile, L"NUL") && (!(param.overwriteFlag)))
+	if(_wcsicmp(param.outputFile, L"-") && _wcsicmp(param.outputFile, L"NUL") && (!(param.overwriteFlag)))
 	{
-		if(!_waccess(outputFile, 4))
+		if(!_waccess(param.outputFile, 4))
 		{
 			cerr << "Error: Output file already exists, will NOT overwrite!" << endl;
 			return 3;
@@ -256,13 +257,13 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	wmaReader = new CWmaReader();
 	cerr << "Opening input file... " << flush;
 
-	if(wmaReader->isProtected(inputFile))
+	if(wmaReader->isProtected(param.inputFile))
 	{
 		cerr << "Failed\n\nSorry, DRM infected ASF (WMA/WMV) files can not be processed!" << endl;
 		SAFE_DELETE(wmaReader);
 		return 4;
 	}
-	if(!wmaReader->open(inputFile))
+	if(!wmaReader->open(param.inputFile))
 	{
 		cerr << "Failed\n\nMake sure that the input file is a valid ASF (WMA/WMV) file!" << endl;
 		SAFE_DELETE(wmaReader);
@@ -297,14 +298,14 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		fprintf(stderr, "fDuration: %.0f:%04.1f\n", duration_minutes, duration_seconds);
 	}
 	
-	if(title = wmaReader->getTitle())
+	if(param.title = wmaReader->getTitle())
 	{
-		if(temp = utf16_to_utf8(title))
+		if(temp = utf16_to_utf8(param.title))
 		{
 			fprintf(stderr, "sTitle: %s\n", temp);
 			SAFE_DELETE_ARRAY(temp);
 		}
-		SAFE_DELETE_ARRAY(title);
+		SAFE_DELETE_ARRAY(param.title);
 	}
 
 	if((bufferLen = wmaReader->getSampleSize()) < 1)
@@ -319,7 +320,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	sink = (!(param.rawOutput)) ? dynamic_cast<CAbstractSink*>(new CWaveWriter()) : dynamic_cast<CAbstractSink*>(new CRawWriter());
 
-	if(!sink->open(outputFile, &format))
+	if(!sink->open(param.outputFile, &format))
 	{
 		cerr << "Failed" << endl;
 		SAFE_DELETE(wmaReader);
@@ -386,6 +387,16 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			}
 			break;
 		}
+
+		if((sampleLen % ((format.wBitsPerSample / 8) * format.nChannels)) > 0)
+		{
+			fprintf(stderr, "\rInconsistent sample length: %I64u is not a multiple of %I64u.\n", static_cast<unsigned __int64>(sampleLen), static_cast<unsigned __int64>((format.wBitsPerSample / 8) * format.nChannels));
+		}
+		
+		//if(abs(sampleDuration - bytes_to_time(sampleLen, &format)) > maxGapSize)
+		//{
+		//	fprintf(stderr, "\rInconsistent duration: Got samples for %10.8f seconds, but duration is %10.8f.\n", bytes_to_time(sampleLen, &format), sampleDuration);
+		//}
 
 		if((sampleTimestamp >= 0.0) && (abs(sampleTimestamp - currentTime) > maxGapSize))
 		{
@@ -454,16 +465,20 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			return 9;
 		}
 
-		if(sampleDuration >= 0.0)
+		if((sampleDuration >= 0.0) && (!(param.alternativeMode)))
 		{
-			if((sampleTimestamp >= 0.0) && (!(param.alternativeMode)))
+			if(sampleTimestamp >= 0.0)
 			{
 				currentTime = sampleTimestamp + sampleDuration;
 			}
 			else 
 			{
-				currentTime += sampleDuration;
+				currentTime += bytes_to_time(sampleLen, &format);
 			}
+		}
+		else
+		{
+			currentTime += bytes_to_time(sampleLen, &format);
 		}
 	}
 
