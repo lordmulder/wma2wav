@@ -1,4 +1,4 @@
-wma2wav - Dump WMA/WMV files to Wave Audio [Jul 17 2011]
+wma2wav - Dump WMA/WMV files to Wave Audio [Jul 18 2011]
 Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved.
 Released under the terms of the GNU General Public License.
 
@@ -17,8 +17,8 @@ Options:
   -f           Force overwrite of output file (if already exists)
   -r           Output "raw" PCM data to file instead of Wave/RIFF file
   -s           Silent mode, do not display progress indicator
+  -x           Use the "alternative" timestamp calculation mode
   -a           Enable "aggressive" sync correction mode (not recommended)
-  -x           Use "alternative" timestamp calculation mode (experimental)
   -n           No sync correction (can not use with '-a' or '-x')
 
 Example:
