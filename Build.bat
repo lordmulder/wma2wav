@@ -13,14 +13,13 @@ rem -------------------------------------------------------------------------
 set "PATH_SOLUTION=%~dp0\wma2wav.sln"
 set "PATH_RELEASE=%~dp0\Release"
 set "PATH_TEMP=%TMP%\~%RANDOM%%RANDOM%.tmp"
-set "DATE_TEMP_FILE=%PATH_TEMP%\date.tag"
+set "DATE_TEMP_FILE=%PATH_TEMP%\build_date.tag"
 rem
 rem -------------------------------------------------------------------------
 if not exist "%~dp0\etc\date.exe" (
   echo Error: %~dp0\etc\date.exe not found.
   goto BUILD_DONE
 )
-set "DATE_TEMP_FILE=%TEMP%\~date.%RANDOM%%RANDOM%.tmp"
 "%~dp0\etc\date.exe" +%%Y-%%m-%%d > "%DATE_TEMP_FILE%"
 set /p "ISO_DATE=" < "%DATE_TEMP_FILE%"
 rem
