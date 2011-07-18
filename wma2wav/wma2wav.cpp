@@ -42,9 +42,11 @@ typedef struct
 	bool aggressiveMode;
 	bool noCompensation;
 	bool alternativeMode;
+	wchar_t title[128];
+	wchar_t codecName[128];
+	wchar_t codecInfo[128];
 	wchar_t *inputFile;
 	wchar_t *outputFile;
-	wchar_t *title;
 }
 param_t;
 
@@ -298,14 +300,27 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		fprintf(stderr, "fDuration: %.0f:%04.1f\n", duration_minutes, duration_seconds);
 	}
 	
-	if(param.title = wmaReader->getTitle())
+	if(wmaReader->getCodecInfo(param.codecName, param.codecInfo, 128))
+	{
+		if(temp = utf16_to_utf8(param.codecName))
+		{
+			fprintf(stderr, "sCodecName: %s\n", temp);
+			SAFE_DELETE_ARRAY(temp);
+		}
+		if(temp = utf16_to_utf8(param.codecInfo))
+		{
+			fprintf(stderr, "sCodecInfo: %s\n", temp);
+			SAFE_DELETE_ARRAY(temp);
+		}
+	}
+
+	if(wmaReader->getTitle(param.title, 128))
 	{
 		if(temp = utf16_to_utf8(param.title))
 		{
 			fprintf(stderr, "sTitle: %s\n", temp);
 			SAFE_DELETE_ARRAY(temp);
 		}
-		SAFE_DELETE_ARRAY(param.title);
 	}
 
 	if((bufferLen = wmaReader->getSampleSize()) < 1)
@@ -491,7 +506,6 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		return 10;
 	}
 
-	
 	if((stats[0] > 0) || (stats[1] > 0))
 	{
 		cerr << "\nWarning: Sync correction inserted " << stats[0] << " zero bytes, skipped " << stats[1] << " bytes." << flush;

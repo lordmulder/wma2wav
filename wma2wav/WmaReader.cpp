@@ -29,6 +29,7 @@ typedef HRESULT (__stdcall *WMCreateSyncReaderProc)(IUnknown* pUnkCert, DWORD dw
 typedef HRESULT (__stdcall *WMIsContentProtectedProc)(const WCHAR *pwszFileName, BOOL *pfIsProtected);
 
 #define LOAD_LIBRARY_SEARCH_SYSTEM32 0x00000800
+#define CHECK_MEDIA_TYPE(S,X,Y,T) if(X == Y) { wcscpy_s(S, size, L##T); }
 
 CWmaReader::CWmaReader(void)
 {
@@ -39,6 +40,8 @@ CWmaReader::CWmaReader(void)
 	m_format = NULL;
 	m_outputNum = -1;
 	m_streamNum = -1;
+
+	SecureZeroMemory(&m_mediaSubType, sizeof(GUID));
 
 	m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
 	if(!(m_wmvCore != NULL))
@@ -187,6 +190,7 @@ bool CWmaReader::analyze(void)
 										memcpy(m_format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
 										m_outputNum = i;
 										m_streamNum = streamNum;
+										memcpy(&m_mediaSubType, &(mediaType->subtype), sizeof(GUID));
 										foundAudioStream = true;
 									}
 								}
@@ -247,45 +251,107 @@ double CWmaReader::getDuration(void)
 	return duration;
 }
 
-wchar_t *CWmaReader::getTitle(void)
+bool CWmaReader::getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t size)
 {
-	wchar_t *title = NULL;
-
+	wcscpy_s(codecName, size, L"Unknown");
+	wcscpy_s(codecInfo, size, L"Unknown");
+	
 	if(!(m_isOpen && m_isAnalyzed))
 	{
 		return false;
 	}
+
+	wchar_t *temp = NULL;
+	IWMHeaderInfo2* pHdrInfo = NULL;
+	bool foundInfo = false;
 	
-	IWMHeaderInfo* pHdrInfo = NULL;
-	
-	if(m_reader->QueryInterface(IID_IWMHeaderInfo,(void**)&pHdrInfo) == S_OK)
+	if(m_reader->QueryInterface(IID_IWMHeaderInfo2,(void**)&pHdrInfo) == S_OK)
 	{
-		WMT_ATTR_DATATYPE dType;
-		WORD size = 0;
-		WORD stream = 0; //m_streamNum;
-		
-		if(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, NULL, &size) == S_OK)
+		DWORD codecCount = 0;
+
+		if(pHdrInfo->GetCodecInfoCount(&codecCount) == S_OK)
 		{
-			if((dType == WMT_TYPE_STRING))
+			for(DWORD i = 0; i < codecCount; i++)
 			{
-				size_t len = (size / sizeof(wchar_t));
-				
-				if(len > 1)
+				WORD sizeName = 0;
+				WORD sizeDesc = 0;
+				WORD sizeInfo = 0;
+				WMT_CODEC_INFO_TYPE codecInfoType;
+
+				if(pHdrInfo->GetCodecInfo(i, &sizeName, NULL, &sizeDesc, NULL, &codecInfoType, &sizeInfo, NULL) == S_OK)
 				{
-					title = new wchar_t[len];
-				
-					if(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, (BYTE*)title, &size) != S_OK)
+					if(codecInfoType == WMT_CODECINFO_AUDIO)
 					{
-						SAFE_DELETE_ARRAY(title);
+						wchar_t *buffName = new wchar_t[sizeName];
+						wchar_t *buffDesc = new wchar_t[sizeDesc];
+						BYTE *buffInfo = new BYTE[sizeInfo];
+
+						if(pHdrInfo->GetCodecInfo(i, &sizeName, buffName, &sizeDesc, buffDesc, &codecInfoType, &sizeInfo, buffInfo) == S_OK)
+						{
+							if(wcslen(buffName) > 0) wcscpy_s(codecName, size, buffName);
+							if(wcslen(buffDesc) > 0) wcscpy_s(codecInfo, size, buffDesc);
+							foundInfo = true;
+						}
+
+						SAFE_DELETE_ARRAY(buffName);
+						SAFE_DELETE_ARRAY(buffDesc);
+						SAFE_DELETE_ARRAY(buffInfo);
 					}
 				}
 			}
 		}
 		
 		pHdrInfo->Release();
+		pHdrInfo = NULL;
 	}
 
-	return title;
+	return foundInfo;
+}
+
+bool CWmaReader::getTitle(wchar_t *title, size_t size)
+{
+	wcscpy_s(title, size, L"Unknown");
+	
+	if(!(m_isOpen && m_isAnalyzed))
+	{
+		return false;
+	}
+	
+	IWMHeaderInfo* pHdrInfo = NULL;
+	bool foundInfo = false;
+	
+	if(m_reader->QueryInterface(IID_IWMHeaderInfo,(void**)&pHdrInfo) == S_OK)
+	{
+		WMT_ATTR_DATATYPE dType;
+		WORD attrSize = 0;
+		WORD stream = 0; //m_streamNum;
+		
+		if(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, NULL, &attrSize) == S_OK)
+		{
+			if((dType == WMT_TYPE_STRING))
+			{
+				size_t strLen = (attrSize / sizeof(wchar_t));
+				
+				if(strLen > 1)
+				{
+					wchar_t *temp = new wchar_t[strLen];
+				
+					if(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, reinterpret_cast<BYTE*>(temp), &attrSize) == S_OK)
+					{
+						wcscpy_s(title, size, temp);
+						foundInfo = true;
+					}
+
+					SAFE_DELETE_ARRAY(temp);
+				}
+			}
+		}
+		
+		pHdrInfo->Release();
+		pHdrInfo = NULL;
+	}
+
+	return foundInfo;
 }
 
 bool CWmaReader::getFormat(WAVEFORMATEX *format)

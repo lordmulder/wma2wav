@@ -37,7 +37,8 @@ public:
 	bool getFormat(WAVEFORMATEX *format);
 	size_t getSampleSize(void);
 	double getDuration(void);
-	wchar_t *getTitle(void);
+	bool getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t size);
+	bool getTitle(wchar_t *title, size_t size);
 	bool getNextSample(BYTE *output, size_t *length, double *timeStamp = NULL, double *sampleDuration = NULL);
 
 private:
@@ -46,9 +47,9 @@ private:
 	WAVEFORMATEX *m_format;
 	DWORD m_outputNum;
 	WORD m_streamNum;
+	GUID m_mediaSubType;
 	
 	bool m_isOpen;
 	bool m_isAnalyzed;
-
 };
 
