@@ -40,3 +40,11 @@ OS Support
 ----------
 
 The pre-compiled binaries of this tool were compiled with Visual Studio 2010 and therefore will only work on Windows XP with Service Pack 2 or any later version of Microsoft Windows (including Vista and Windows 7). It does NOT run on Windows 2000 though! Please compile with Visual Studio 2008, if you still need Windows 2000 support. The tool has been tested to work with Linux (Ubuntu 11.04) thanks to Wine.
+
+
+Sync Correction
+---------------
+
+This tool implements "sync correction" for ASF (WMA/WMV) files. Sync correction is required for keeping the audio/video in sync, i.e. when dumping the audio part of a WMV file, because in a WMA/WMV stream each individual so-called "sample" (actually a chunk of audio samples) has its own timestamp/duration attached. Generally it is assumed that the timestamps of the audio stream are consistent and continuous. So if timestamp[i] denotes the timestamp of the i-th sample and duration[i] denotes the duration of the i-th sample, then "timestamp[n] = timestamp[n-1] + duration[n-1]" shall be true for all samples n. If, however, this equation does NOT hold true for a certain sample n, then we have a discontinuity - either there is a "gap" between the audio samples or the audio samples "overlap". This tool tries to compensate for "gaps" by padding with zero bytes and to compensate for "overlaps" by skipping bytes. As there always are tiny discontinuities (probably due to limited timestamp precision), this tool will only compensate for gaps/overlaps that exceed a certain threshold by default. This way excessive padding is avoided. The "aggressive" mode will compensate for ALL gaps/overlaps, which in theory should be more accurate, but in reality doesn't seem to work very well. There also is an "alternative" timestamp calculation mode available. While the default mode will calculate the expected(!) timestamp of the NEXT sample as the sum of the timestamp & duration of the CURRENT sample, the alternative mode calculates the expected(!) timestamp of the NEXT sample as the accumulated sum of the measured(!) durations of ALL samples processed so far. If you are just processing audio-only files, you do not need sync correction and you may disable it entirely.
+
+If anybody knows of a better method to sync WMA streams, please drop me a note ;-)
