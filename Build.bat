@@ -20,6 +20,7 @@ if not exist "%~dp0\etc\date.exe" (
   echo Error: %~dp0\etc\date.exe not found.
   goto BUILD_DONE
 )
+mkdir "%PATH_TEMP%"
 "%~dp0\etc\date.exe" +%%Y-%%m-%%d > "%DATE_TEMP_FILE%"
 set /p "ISO_DATE=" < "%DATE_TEMP_FILE%"
 rem
@@ -38,7 +39,6 @@ msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Build
 if not "%ERRORLEVEL%"=="0" goto BUILD_DONE
 rem
 rem -------------------------------------------------------------------------
-mkdir "%PATH_TEMP%"
 copy "%PATH_RELEASE%\Win32\wma2wav.exe" "%PATH_TEMP%\wma2wav.exe"
 copy "%PATH_RELEASE%\x64\wma2wav.exe" "%PATH_TEMP%\wma2wav-x64.exe"
 copy "%~dp0\*.txt" "%PATH_TEMP%"
