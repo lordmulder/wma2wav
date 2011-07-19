@@ -33,8 +33,9 @@ public:
 	bool isProtected(const wchar_t *filename);
 	bool open(const wchar_t *filename);
 	void close(void);
-	bool analyze(void);
-	bool getFormat(WAVEFORMATEX *format);
+	bool analyze(WAVEFORMATEX *format);
+	bool configureOutput(WAVEFORMATEX *format);
+	bool getOutputFormat(WAVEFORMATEX *format);
 	size_t getSampleSize(void);
 	double getDuration(void);
 	bool getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t size);
@@ -47,12 +48,9 @@ private:
 
 	HMODULE m_wmvCore;
 	IWMSyncReader *m_reader;
-	WAVEFORMATEX *m_format;
 	DWORD m_outputNum;
 	WORD m_streamNum;
 	
-	bool findAudioStream(void);
-	bool setOutputFormat(void);
-	bool getOutputFormat(void);
+	bool _findAudioStream(WAVEFORMATEX *format);
 };
 

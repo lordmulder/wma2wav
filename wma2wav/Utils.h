@@ -32,4 +32,5 @@ double bytes_to_time(size_t bytes, WAVEFORMATEX *format);
 #define SAFE_DELETE(PTR) if(PTR) { delete PTR; PTR = NULL; }
 #define SAFE_DELETE_ARRAY(PTR) if(PTR) { delete [] PTR; PTR = NULL; }
 #define SAFE_COM_UNINIT(FLAG) if(FLAG) { CoUninitialize(); FLAG = false; }
+#define CLIP3(MIN, VAL, MAX) (((VAL) > (MAX)) ? (MAX) : (((VAL) < (MIN)) ? (MIN) : (VAL)))
 #define ROUND(F) (((F) >= 0.0) ? floor((F) + 0.5) : ceil((F) - 0.5))

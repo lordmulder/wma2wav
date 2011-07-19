@@ -42,6 +42,7 @@ typedef struct
 	bool aggressiveMode;
 	bool noCompensation;
 	bool alternativeMode;
+	bool defaultFormat;
 	wchar_t title[128];
 	wchar_t codecName[128];
 	wchar_t codecInfo[128];
@@ -65,6 +66,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 	param->aggressiveMode = false;
 	param->noCompensation = false;
 	param->alternativeMode = false;
+	param->defaultFormat = false;
 	char *temp = NULL;
 
 	for(int i = 1; i < argc; i++)
@@ -131,6 +133,11 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 		if(!_wcsicmp(argv[i], L"-x"))
 		{
 			param->alternativeMode = true;
+			continue;
+		}
+		if(!_wcsicmp(argv[i], L"-d"))
+		{
+			param->defaultFormat = true;
 			continue;
 		}
 		
@@ -208,7 +215,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -s           Silent mode, do not display progress indicator" << endl;
 		cerr << "  -x           Use the \"alternative\" timestamp calculation mode" << endl;
 		cerr << "  -a           Enable \"aggressive\" sync correction mode (not recommended)" << endl;
-		cerr << "  -n           No sync correction (can not use with '-a' or '-x')\n" << endl;
+		cerr << "  -n           No sync correction (can not use with '-a' or '-x')" << endl;
+		cerr << "  -d           Use \"default\" audio output format (e.g. Stereo, 16-Bit)\n" << endl;
 		cerr << "Example:" << endl;
 		cerr << "  wma2wav.exe \"c:\\my music\\input.wma\" \"c:\\temp\\output.wav\"\n" << endl;
 		return 1;
@@ -269,22 +277,40 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	{
 		cerr << "Failed\n\nMake sure that the input file is a valid ASF (WMA/WMV) file!" << endl;
 		SAFE_DELETE(wmaReader);
-		return 4;
+		return 5;
 	}
 	
 	cerr << "OK\nAnalyzing input file... " << flush;
 
-	if(!wmaReader->analyze())
+	if(!wmaReader->analyze(&format))
 	{
 		cerr << "Failed\n\nThis usually indicates that the ASF file contains no suitable audio stream." << endl;
 		SAFE_DELETE(wmaReader);
-		return 5;
+		return 6;
+	}
+	
+	if(!(param.defaultFormat))
+	{
+		cerr << "OK\nConfiguring output format... " << flush;
+
+		format.wFormatTag = WAVE_FORMAT_PCM;
+		format.wBitsPerSample = CLIP3(1, (format.wBitsPerSample / 8), 3) * 8;
+		format.nBlockAlign = (format.wBitsPerSample * format.nChannels) / 8;
+		format.nAvgBytesPerSec = format.nBlockAlign * format.nSamplesPerSec;
+
+		cerr << (wmaReader->configureOutput(&format) ? "OK" : "Failed") << endl;
+	}
+	else
+	{
+		cerr << "OK" << endl;
 	}
 		
-	if(!wmaReader->getFormat(&format))
+	cerr << "Getting output format... " << flush;
+
+	if(!wmaReader->getOutputFormat(&format))
 	{
-		cerr << "Failed\n\nInternal error, aborting! (0x01)" << endl;
-		_exit(-1);
+		cerr << "Failed\n\nInternal Error: Could not determine output format." << endl;
+		return 7;
 	}
 
 	cerr << "OK\n\n[Audio Properties]" << endl;
@@ -329,7 +355,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	{
 		cerr << "\nFailed to detect maximum sample size!" << endl;
 		SAFE_DELETE(wmaReader);
-		return 6;
+		return 8;
 	}
 	
 	cerr << "nMaxSampleSize: " << bufferLen << endl;
@@ -341,7 +367,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	{
 		cerr << "Failed" << endl;
 		SAFE_DELETE(wmaReader);
-		return 7;
+		return 9;
 	}
 
 	cerr << "OK\n" << endl;
@@ -390,7 +416,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			SAFE_DELETE(sink);
 			SAFE_DELETE(wmaReader);
 			SAFE_DELETE_ARRAY(buffer);
-			return 8;
+			return 10;
 		}
 		
 		if(!(sampleLen > 0))
@@ -410,11 +436,6 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			fprintf(stderr, "\rInconsistent sample length: %I64u is not a multiple of %I64u.\n", static_cast<unsigned __int64>(sampleLen), static_cast<unsigned __int64>((format.wBitsPerSample / 8) * format.nChannels));
 		}
 		
-		//if(abs(sampleDuration - bytes_to_time(sampleLen, &format)) > maxGapSize)
-		//{
-		//	fprintf(stderr, "\rInconsistent duration: Got samples for %10.8f seconds, but duration is %10.8f.\n", bytes_to_time(sampleLen, &format), sampleDuration);
-		//}
-
 		if((sampleTimestamp >= 0.0) && (abs(sampleTimestamp - currentTime) > maxGapSize))
 		{
 			if(!(param.silentMode))
@@ -448,7 +469,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 							SAFE_DELETE(sink);
 							SAFE_DELETE(wmaReader);
 							SAFE_DELETE_ARRAY(buffer);
-							return 9;
+							return 11;
 						}
 						paddingBytes -= currentSize;
 					}
@@ -479,7 +500,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			SAFE_DELETE(sink);
 			SAFE_DELETE(wmaReader);
 			SAFE_DELETE_ARRAY(buffer);
-			return 9;
+			return 12;
 		}
 
 		if((sampleDuration >= 0.0) && (!(param.alternativeMode)))
@@ -505,7 +526,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		SAFE_DELETE(wmaReader);
 		SAFE_DELETE(sink);
 		SAFE_DELETE_ARRAY(buffer);
-		return 10;
+		return 13;
 	}
 
 	if((stats[0] > 0) || (stats[1] > 0))
