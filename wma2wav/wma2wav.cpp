@@ -292,6 +292,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	cerr << "nChannels: " << format.nChannels << endl;
 	cerr << "nSamplesPerSec: " << format.nSamplesPerSec << endl;
 	cerr << "wBitsPerSample: " << format.wBitsPerSample << endl;
+	cerr << "nAvgBytesPerSec: " << format.nAvgBytesPerSec << endl;
+	cerr << "nBlockAlign: " << format.nBlockAlign << endl;
 
 	if((duration = wmaReader->getDuration()) > 0.0)
 	{

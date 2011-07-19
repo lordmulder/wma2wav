@@ -315,6 +315,11 @@ bool CWmaReader::findAudioStream(void)
 
 bool CWmaReader::setOutputFormat(void)
 {
+	if(!m_format)
+	{
+		return false;
+	}
+	
 	bool success = false;
 	IWMOutputMediaProps *pIWMOutputMediaProps = NULL;
 			
@@ -332,12 +337,11 @@ bool CWmaReader::setOutputFormat(void)
 				if(mediaType->formattype == WMFORMAT_WaveFormatEx)
 				{
 					memcpy(mediaType->pbFormat, m_format, sizeof(WAVEFORMATEX));
-							
+
 					if(pIWMOutputMediaProps->SetMediaType(mediaType) == S_OK)
 					{
 						if(m_reader->SetOutputProps(m_outputNum, pIWMOutputMediaProps) == S_OK)
 						{
-							memcpy(m_format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
 							success = true;
 						}
 					}
@@ -356,6 +360,11 @@ bool CWmaReader::setOutputFormat(void)
 
 bool CWmaReader::getOutputFormat(void)
 {
+	if(!m_format)
+	{
+		return false;
+	}
+
 	bool success = false;
 	IWMOutputMediaProps *pIWMOutputMediaProps = NULL;
 			
