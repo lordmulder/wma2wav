@@ -323,6 +323,14 @@ bool CWmaReader::setOutputFormat(void)
 	bool success = false;
 	IWMOutputMediaProps *pIWMOutputMediaProps = NULL;
 			
+	if(m_format->nChannels > 2)
+	{
+		BOOL discreteOutput = TRUE;
+		DWORD speakerCfg = 0x00000000; //DSSPEAKER_DIRECTOUT
+		m_reader->SetOutputSetting(m_outputNum, g_wszEnableDiscreteOutput, WMT_TYPE_BOOL, (BYTE*)&discreteOutput, sizeof(BOOL));
+		m_reader->SetOutputSetting(m_outputNum, g_wszSpeakerConfig, WMT_TYPE_DWORD, (BYTE*)&speakerCfg, sizeof(BOOL));
+	}
+
 	if(m_reader->GetOutputProps(m_outputNum, &pIWMOutputMediaProps) == S_OK)
 	{
 		DWORD mediaTypeSize = 0;
