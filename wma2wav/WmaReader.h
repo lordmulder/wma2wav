@@ -30,6 +30,8 @@ public:
 	CWmaReader(void);
 	~CWmaReader(void);
 
+	bool getRuntimeVersion(wchar_t *version, size_t size);
+	bool isValid(const wchar_t *filename);
 	bool isProtected(const wchar_t *filename);
 	bool open(const wchar_t *filename);
 	void close(void);
@@ -47,6 +49,7 @@ private:
 	bool m_isAnalyzed;
 
 	HMODULE m_wmvCore;
+	DWORD m_wmvCoreVersion[4];
 	IWMSyncReader *m_reader;
 	DWORD m_outputNum;
 	WORD m_streamNum;

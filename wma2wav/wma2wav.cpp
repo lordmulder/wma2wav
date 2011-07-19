@@ -46,6 +46,7 @@ typedef struct
 	wchar_t title[128];
 	wchar_t codecName[128];
 	wchar_t codecInfo[128];
+	wchar_t rtVersion[128];
 	wchar_t *inputFile;
 	wchar_t *outputFile;
 }
@@ -234,50 +235,69 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	if(temp = utf16_to_utf8(param.inputFile))
 	{
-		fprintf(stderr, "Input file: %s\n", temp);
+		fprintf(stderr, "Input file:\t%s\n", temp);
 		SAFE_DELETE_ARRAY(temp);
 	}
 	if(_wcsicmp(param.outputFile, L"-"))
 	{
 		if(temp = utf16_to_utf8(param.outputFile))
 		{
-			fprintf(stderr, "Output file: %s\n\n", temp);
+			fprintf(stderr, "Output file:\t%s\n", temp);
 			SAFE_DELETE_ARRAY(temp);
 		}
 	}
 	else
 	{
-		fprintf(stderr, "Output file: <STDOUT>\n\n");
+		fprintf(stderr, "Output file:\t<STDOUT>\n");
 	}
 	
 	if(_waccess(param.inputFile, 4))
 	{
-		cerr << "Error: Input file could not be found or access denied!" << endl;
+		cerr << "\nError: Input file could not be found or access denied!" << endl;
 		return 2;
 	}
 	if(_wcsicmp(param.outputFile, L"-") && _wcsicmp(param.outputFile, L"NUL") && (!(param.overwriteFlag)))
 	{
 		if(!_waccess(param.outputFile, 4))
 		{
-			cerr << "Error: Output file already exists, will NOT overwrite!" << endl;
+			cerr << "\nError: Output file already exists, will NOT overwrite!" << endl;
 			return 3;
 		}
 	}
 
 	wmaReader = new CWmaReader();
-	cerr << "Opening input file... " << flush;
 
-	if(wmaReader->isProtected(param.inputFile))
+	if(wmaReader->getRuntimeVersion(param.rtVersion, 128))
 	{
-		cerr << "Failed\n\nSorry, DRM infected ASF (WMA/WMV) files can not be processed!" << endl;
+		if(temp = utf16_to_utf8(param.rtVersion))
+		{
+			fprintf(stderr, "WM Runtime:\tv%s\n", temp);
+			SAFE_DELETE_ARRAY(temp);
+		}
+	}
+
+	cerr << "\nOpening input file... " << flush;
+
+	if(!wmaReader->isValid(param.inputFile))
+	{
+		cerr << "Failed\n\nSorry, this file is invalid/unsupported and can not be processed." << endl;
+		cerr << "Make sure that the supplied input file is a valid ASF (WMA/WMV) file!" << endl;
 		SAFE_DELETE(wmaReader);
 		return 4;
 	}
-	if(!wmaReader->open(param.inputFile))
+	if(wmaReader->isProtected(param.inputFile))
 	{
-		cerr << "Failed\n\nMake sure that the input file is a valid ASF (WMA/WMV) file!" << endl;
+		cerr << "Failed\n\nSorry, DRM infected ASF (WMA/WMV) files can not be processed." << endl;
+		cerr << "See `http://en.wikipedia.org/wiki/Windows_Media_DRM` for details!" << endl;
 		SAFE_DELETE(wmaReader);
 		return 5;
+	}
+	if(!wmaReader->open(param.inputFile))
+	{
+		cerr << "Failed\n\nSorry, this file could not be opended although it appears to be valid." << endl;
+		cerr << "Make sure that the supplied input file is a valid ASF (WMA/WMV) file!" << endl;
+		SAFE_DELETE(wmaReader);
+		return 6;
 	}
 	
 	cerr << "OK\nAnalyzing input file... " << flush;
@@ -286,7 +306,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	{
 		cerr << "Failed\n\nThis usually indicates that the ASF file contains no suitable audio stream." << endl;
 		SAFE_DELETE(wmaReader);
-		return 6;
+		return 7;
 	}
 	
 	if(!(param.defaultFormat))
@@ -310,7 +330,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	if(!wmaReader->getOutputFormat(&format))
 	{
 		cerr << "Failed\n\nInternal Error: Could not determine output format." << endl;
-		return 7;
+		return 8;
 	}
 
 	cerr << "OK\n\n[Audio Properties]" << endl;
@@ -355,7 +375,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	{
 		cerr << "\nFailed to detect maximum sample size!" << endl;
 		SAFE_DELETE(wmaReader);
-		return 8;
+		return 9;
 	}
 	
 	cerr << "nMaxSampleSize: " << bufferLen << endl;
@@ -367,7 +387,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	{
 		cerr << "Failed" << endl;
 		SAFE_DELETE(wmaReader);
-		return 9;
+		return 10;
 	}
 
 	cerr << "OK\n" << endl;
@@ -416,7 +436,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			SAFE_DELETE(sink);
 			SAFE_DELETE(wmaReader);
 			SAFE_DELETE_ARRAY(buffer);
-			return 10;
+			return 11;
 		}
 		
 		if(!(sampleLen > 0))
@@ -431,9 +451,9 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			break;
 		}
 
-		if((sampleLen % ((format.wBitsPerSample / 8) * format.nChannels)) > 0)
+		if((sampleLen % format.nBlockAlign) > 0)
 		{
-			fprintf(stderr, "\rInconsistent sample length: %I64u is not a multiple of %I64u.\n", static_cast<unsigned __int64>(sampleLen), static_cast<unsigned __int64>((format.wBitsPerSample / 8) * format.nChannels));
+			fprintf(stderr, "\rInconsistent sample length: %I64u is not a multiple of %I64u.\n", static_cast<unsigned __int64>(sampleLen), static_cast<unsigned __int64>(format.nBlockAlign));
 		}
 		
 		if((sampleTimestamp >= 0.0) && (abs(sampleTimestamp - currentTime) > maxGapSize))
@@ -469,7 +489,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 							SAFE_DELETE(sink);
 							SAFE_DELETE(wmaReader);
 							SAFE_DELETE_ARRAY(buffer);
-							return 11;
+							return 12;
 						}
 						paddingBytes -= currentSize;
 					}
@@ -500,7 +520,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			SAFE_DELETE(sink);
 			SAFE_DELETE(wmaReader);
 			SAFE_DELETE_ARRAY(buffer);
-			return 12;
+			return 13;
 		}
 
 		if((sampleDuration >= 0.0) && (!(param.alternativeMode)))
@@ -526,7 +546,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		SAFE_DELETE(wmaReader);
 		SAFE_DELETE(sink);
 		SAFE_DELETE_ARRAY(buffer);
-		return 13;
+		return 14;
 	}
 
 	if((stats[0] > 0) || (stats[1] > 0))

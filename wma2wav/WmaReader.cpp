@@ -27,6 +27,8 @@ using namespace std;
 
 typedef HRESULT (__stdcall *WMCreateSyncReaderProc)(IUnknown* pUnkCert, DWORD dwRights, IWMSyncReader **ppSyncReader);
 typedef HRESULT (__stdcall *WMIsContentProtectedProc)(const WCHAR *pwszFileName, BOOL *pfIsProtected);
+typedef HRESULT (__stdcall *WMValidateDataProc)(BYTE *pbData, DWORD *pdwDataSize);
+
 
 #define LOAD_LIBRARY_SEARCH_SYSTEM32 0x00000800
 #define CHECK_MEDIA_TYPE(S,X,Y,T) if(X == Y) { wcscpy_s(S, size, L##T); }
@@ -36,20 +38,54 @@ CWmaReader::CWmaReader(void)
 	m_isOpen = false;
 	m_isAnalyzed = false;
 	m_wmvCore = NULL;
+	m_wmvCoreVersion[0] = 0;
+	m_wmvCoreVersion[1] = 0;
+	m_wmvCoreVersion[2] = 0;
+	m_wmvCoreVersion[3] = 0;
 	m_reader = NULL;
 	m_outputNum = -1;
 	m_streamNum = -1;
 
 	m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
+
 	if(!(m_wmvCore != NULL))
 	{
 		throw "Fatal Error: Failed to load WMVCORE.DLL libraray!";
 	}
 	
+	wchar_t wmvCorePath[1024];
+	
+	if(GetModuleFileNameW(m_wmvCore, wmvCorePath, 1024))
+	{
+		wmvCorePath[1023] = L'\0';
+		DWORD verInfoSize = GetFileVersionInfoSize(wmvCorePath, NULL);
+		BYTE *verInfo = new BYTE[verInfoSize];
+
+		if(GetFileVersionInfo(wmvCorePath, NULL, verInfoSize, verInfo))
+		{
+			UINT fixedVerInfoSize = 0;
+			VS_FIXEDFILEINFO *fixedVerInfo = NULL;
+			
+			if(VerQueryValueW(verInfo, L"\\", (void**)&fixedVerInfo, &fixedVerInfoSize))
+			{
+				if(fixedVerInfo->dwFileType == VFT_DLL)
+				{
+					m_wmvCoreVersion[0] = HIWORD(fixedVerInfo->dwFileVersionMS);
+					m_wmvCoreVersion[1] = LOWORD(fixedVerInfo->dwFileVersionMS);
+					m_wmvCoreVersion[2] = HIWORD(fixedVerInfo->dwFileVersionLS);
+					m_wmvCoreVersion[3] = LOWORD(fixedVerInfo->dwFileVersionLS);
+				}
+			}
+		}
+		
+		SAFE_DELETE_ARRAY(verInfo);
+	}
+
 	WMCreateSyncReaderProc pWMCreateSyncReader = reinterpret_cast<WMCreateSyncReaderProc>(GetProcAddress(m_wmvCore, "WMCreateSyncReader"));	
+	
 	if(!(pWMCreateSyncReader != NULL))
 	{
-		throw "Fatal Error: Entry point 'WMCreateSyncReader' not be found!";
+		throw "Fatal Error: Entry point 'WMVCORE.DLL::WMCreateSyncReader' not be found!";
 	}
 	
 	if(pWMCreateSyncReader(NULL, 0, &m_reader) != S_OK)
@@ -71,6 +107,82 @@ CWmaReader::~CWmaReader(void)
 		FreeLibrary(m_wmvCore);
 		m_wmvCore = NULL;
 	}
+}
+
+bool CWmaReader::getRuntimeVersion(wchar_t *version, size_t size)
+{
+	if(m_wmvCoreVersion[0] || m_wmvCoreVersion[1] || m_wmvCoreVersion[2] || m_wmvCoreVersion[3])
+	{
+		swprintf_s(version, size, L"%u.%u.%u.%u", m_wmvCoreVersion[0], m_wmvCoreVersion[1], m_wmvCoreVersion[2], m_wmvCoreVersion[3]);
+		return true;
+	}
+	else
+	{
+		swprintf_s(version, size, L"N/A");
+		return false;
+	}
+}
+
+bool CWmaReader::isValid(const wchar_t *filename)
+{
+	WMValidateDataProc pWMValidateData = reinterpret_cast<WMValidateDataProc>(GetProcAddress(m_wmvCore, "WMValidateData"));	
+
+	if(!(pWMValidateData != NULL))
+	{
+		return true;
+	}
+
+	bool isValid = false;
+
+	BYTE *data;
+	FILE *file = NULL;
+	DWORD size = 0;
+
+	if(pWMValidateData(NULL, &size) != S_OK)
+	{
+		return false;
+	}
+
+	data = new BYTE[size];
+
+	if(_wfopen_s(&file, filename, L"rb"))
+	{
+		SAFE_DELETE_ARRAY(data);
+		return false;
+	}
+
+	size_t len = fread(data, 1, static_cast<size_t>(size), file);
+
+	if(len != static_cast<size_t>(size))
+	{
+		fclose(file);
+		file = NULL;
+		SAFE_DELETE_ARRAY(data);
+		return false;
+	}
+
+	HRESULT result = pWMValidateData(data, &size);
+
+	switch(result)
+	{
+	case S_OK:
+		isValid = true;
+		break;
+	case NS_E_INVALID_DATA:
+		isValid = false;
+		break;
+	case ASF_E_BUFFERTOOSMALL:
+		isValid = true;
+		break;
+	default:
+		isValid = false;
+		break;
+	}
+
+	fclose(file);
+	file = NULL;
+	SAFE_DELETE_ARRAY(data);
+	return isValid;
 }
 
 bool CWmaReader::isProtected(const wchar_t *filename)

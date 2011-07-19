@@ -54,7 +54,7 @@ If anybody knows of a better method to sync WMA streams, please drop me a note ;
 Output Formats
 --------------
 
-The WMA decoder supports multiple output formats. By default it uses something like 16-Bit and 2 channels (Stereo), even for 24-Bit or multi-channels sources. This tool tries to configure an output format that is identical to the source audio, which should allow 24-Bit and/or multi-channel output (for suitable sources). It has to be noted that "true" multi-channel output from the WMA decoder requires additional work and is supported on Windows XP (and later) only. There is an option to output the audio using the "default" output format. You can use this, if "high bit-depth" or multi-channel output is NOT desired.
+The WMA decoder supports multiple output formats. By default it uses something like 16-Bit and 2 channels (Stereo), even for 24-Bit or multi-channels sources. This tool tries to configure an output format that is identical to the source audio's "native" format, which should allow 24-Bit and/or multi-channel output (for suitable sources). It has to be noted that unlocking "true" multi-channel output from the WMA decoder requires additional steps and is supported on Windows XP (and later) only. There also is an option to output the audio using the "default" output format. You can use that option, if "high" bit-depth or multi-channel output is NOT desired.
 
 
 eof.
