@@ -41,8 +41,6 @@ CWmaReader::CWmaReader(void)
 	m_outputNum = -1;
 	m_streamNum = -1;
 
-	SecureZeroMemory(&m_mediaSubType, sizeof(GUID));
-
 	m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
 	if(!(m_wmvCore != NULL))
 	{
@@ -121,6 +119,7 @@ bool CWmaReader::open(const wchar_t *filename)
 	if(m_reader->Open(filename) == S_OK)
 	{
 		m_isOpen = true;
+		m_isAnalyzed = false;
 		return true;
 	}
 
@@ -133,6 +132,12 @@ void CWmaReader::close(void)
 	{
 		m_reader->Close();
 		m_isOpen = false;
+		
+		if(m_isAnalyzed)
+		{
+			m_isAnalyzed = false;
+			SAFE_DELETE(m_format);
+		}
 	}
 }
 
@@ -143,76 +148,243 @@ bool CWmaReader::analyze(void)
 		return false;
 	}
 
-	DWORD outputCount = 0;
+	//DWORD outputCount = 0;
 
-	if(m_reader->GetOutputCount(&outputCount) != S_OK)
+	//if(m_reader->GetOutputCount(&outputCount) != S_OK)
+	//{
+	//	return false;
+	//}
+
+	//bool foundAudioStream = false;
+
+	//for(DWORD i = 0; i < outputCount; i++)
+	//{
+	//	if(foundAudioStream)
+	//	{
+	//		break;
+	//	}
+	//	
+	//	IWMOutputMediaProps *props = NULL;
+	//	
+	//	if(m_reader->GetOutputProps(i, &props) == S_OK)
+	//	{
+	//		DWORD size = 0;
+
+	//		if(props->GetMediaType(NULL, &size) == S_OK)
+	//		{
+	//			char *buffer =  new char[size];
+	//			WM_MEDIA_TYPE *mediaType = reinterpret_cast<WM_MEDIA_TYPE*>(buffer);
+	//			
+	//			if(props->GetMediaType(mediaType, &size) == S_OK)
+	//			{
+	//				if(mediaType->formattype == WMFORMAT_WaveFormatEx)
+	//				{
+	//					WORD streamNum = -1;
+	//					
+	//					if(m_reader->GetStreamNumberForOutput(i, &streamNum) == S_OK)
+	//					{
+	//						if(m_reader->SetReadStreamSamples(streamNum, FALSE) == S_OK)
+	//						{
+	//							BOOL isCompressed = TRUE;
+	//						
+	//							if(m_reader->GetReadStreamSamples(streamNum, &isCompressed) == S_OK)
+	//							{
+	//								if(isCompressed == FALSE)
+	//								{
+	//									m_format = new WAVEFORMATEX;
+	//									memcpy(m_format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
+	//									m_outputNum = i;
+	//									m_streamNum = streamNum;
+	//									memcpy(&m_mediaSubType, &(mediaType->subtype), sizeof(GUID));
+	//									foundAudioStream = true;
+	//								}
+	//							}
+	//						}
+	//					}
+	//				}
+	//			}
+	//			
+	//			delete [] buffer;
+	//		}
+
+	//		props->Release();
+	//		props = NULL;
+	//	}
+	//}
+
+	//if(foundAudioStream)
+	//{
+	//	m_isAnalyzed = true;
+	//}
+
+	if(findAudioStream())
 	{
-		return false;
+		DWORD outputNum = 0;
+		
+		if(m_reader->GetOutputNumberForStream(m_streamNum, &outputNum) == S_OK)
+		{
+			m_outputNum = outputNum;
+			
+			m_format->wFormatTag = WAVE_FORMAT_PCM;
+			m_format->nBlockAlign = (m_format->wBitsPerSample * m_format->nChannels) / 8;
+			m_format->nAvgBytesPerSec = m_format->nBlockAlign * m_format->nSamplesPerSec;
+
+			setOutputFormat();
+
+			if(getOutputFormat())
+			{
+				m_isAnalyzed = true;
+				return true;
+			}
+		}
 	}
 
+	return false;
+}
+
+bool CWmaReader::findAudioStream(void)
+{
 	bool foundAudioStream = false;
+	IWMProfile *pIWMProfile = NULL;
 
-	for(DWORD i = 0; i < outputCount; i++)
+	if(m_reader->QueryInterface(IID_IWMProfile, (void**)&pIWMProfile) == S_OK)
 	{
-		if(foundAudioStream)
-		{
-			break;
-		}
-		
-		IWMOutputMediaProps *props = NULL;
-		
-		if(m_reader->GetOutputProps(i, &props) == S_OK)
-		{
-			DWORD size = 0;
+		DWORD streamCount = 0;
 
-			if(props->GetMediaType(NULL, &size) == S_OK)
+		for(WORD i = 1; i < 64; i++)
+		{
+			IWMStreamConfig *pIWMStreamConfig = NULL;
+		
+			if(pIWMProfile->GetStreamByNumber(i, &pIWMStreamConfig) == S_OK)
 			{
-				char *buffer =  new char[size];
-				WM_MEDIA_TYPE *mediaType = reinterpret_cast<WM_MEDIA_TYPE*>(buffer);
+				GUID streamType = WMMEDIATYPE_Text;
 				
-				if(props->GetMediaType(mediaType, &size) == S_OK)
+				if(pIWMStreamConfig->GetStreamType(&streamType) == S_OK)
 				{
-					if(mediaType->formattype == WMFORMAT_WaveFormatEx)
+					if(streamType == WMMEDIATYPE_Audio)
 					{
-						WORD streamNum = -1;
-						
-						if(m_reader->GetStreamNumberForOutput(i, &streamNum) == S_OK)
+						IWMMediaProps *pIWMMediaProps = NULL;
+
+						if(pIWMStreamConfig->QueryInterface(IID_IWMMediaProps, (void**)&pIWMMediaProps) == S_OK)
 						{
-							if(m_reader->SetReadStreamSamples(streamNum, FALSE) == S_OK)
+							DWORD mediaTypeSize = 0;
+
+							if(pIWMMediaProps->GetMediaType(NULL, &mediaTypeSize) == S_OK)
 							{
-								BOOL isCompressed = TRUE;
-							
-								if(m_reader->GetReadStreamSamples(streamNum, &isCompressed) == S_OK)
+								char *buffer = new char[mediaTypeSize];
+								WM_MEDIA_TYPE *mediaType = reinterpret_cast<WM_MEDIA_TYPE*>(buffer);
+				
+								if(pIWMMediaProps->GetMediaType(mediaType, &mediaTypeSize) == S_OK)
 								{
-									if(isCompressed == FALSE)
+									if(mediaType->formattype == WMFORMAT_WaveFormatEx)
 									{
+										m_streamNum = i;
 										m_format = new WAVEFORMATEX;
 										memcpy(m_format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
-										m_outputNum = i;
-										m_streamNum = streamNum;
-										memcpy(&m_mediaSubType, &(mediaType->subtype), sizeof(GUID));
 										foundAudioStream = true;
 									}
 								}
+
+								delete [] buffer;
 							}
+				
+							pIWMMediaProps->Release();
+							pIWMMediaProps = NULL;
 						}
 					}
 				}
-				
-				delete [] buffer;
+
+				pIWMStreamConfig->Release();
+				pIWMStreamConfig = NULL;
 			}
 
-			props->Release();
-			props = NULL;
+			if(foundAudioStream) break;
 		}
+
+		pIWMProfile->Release();
+		pIWMProfile = NULL;
 	}
 
-	if(foundAudioStream)
+	if(!foundAudioStream)
 	{
-		m_isAnalyzed = true;
+		SAFE_DELETE(m_format);
 	}
 
 	return foundAudioStream;
+}
+
+bool CWmaReader::setOutputFormat(void)
+{
+	bool success = false;
+	IWMOutputMediaProps *pIWMOutputMediaProps = NULL;
+			
+	if(m_reader->GetOutputProps(m_outputNum, &pIWMOutputMediaProps) == S_OK)
+	{
+		DWORD mediaTypeSize = 0;
+
+		if(pIWMOutputMediaProps->GetMediaType(NULL, &mediaTypeSize) == S_OK)
+		{
+			char *buffer =  new char[mediaTypeSize];
+			WM_MEDIA_TYPE *mediaType = reinterpret_cast<WM_MEDIA_TYPE*>(buffer);
+				
+			if(pIWMOutputMediaProps->GetMediaType(mediaType, &mediaTypeSize) == S_OK)
+			{
+				if(mediaType->formattype == WMFORMAT_WaveFormatEx)
+				{
+					memcpy(mediaType->pbFormat, m_format, sizeof(WAVEFORMATEX));
+							
+					if(pIWMOutputMediaProps->SetMediaType(mediaType) == S_OK)
+					{
+						if(m_reader->SetOutputProps(m_outputNum, pIWMOutputMediaProps) == S_OK)
+						{
+							memcpy(m_format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
+							success = true;
+						}
+					}
+				}
+			}
+				
+			SAFE_DELETE_ARRAY(buffer)
+		}
+				
+		pIWMOutputMediaProps->Release();
+		pIWMOutputMediaProps = NULL;
+	}
+
+	return success;
+}
+
+bool CWmaReader::getOutputFormat(void)
+{
+	bool success = false;
+	IWMOutputMediaProps *pIWMOutputMediaProps = NULL;
+			
+	if(m_reader->GetOutputProps(m_outputNum, &pIWMOutputMediaProps) == S_OK)
+	{
+		DWORD mediaTypeSize = 0;
+
+		if(pIWMOutputMediaProps->GetMediaType(NULL, &mediaTypeSize) == S_OK)
+		{
+			char *buffer =  new char[mediaTypeSize];
+			WM_MEDIA_TYPE *mediaType = reinterpret_cast<WM_MEDIA_TYPE*>(buffer);
+				
+			if(pIWMOutputMediaProps->GetMediaType(mediaType, &mediaTypeSize) == S_OK)
+			{
+				if(mediaType->formattype == WMFORMAT_WaveFormatEx)
+				{
+					memcpy(m_format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
+					success = true;
+				}
+			}
+				
+			SAFE_DELETE_ARRAY(buffer)
+		}
+				
+		pIWMOutputMediaProps->Release();
+		pIWMOutputMediaProps = NULL;
+	}
+
+	return success;
 }
 
 double CWmaReader::getDuration(void)

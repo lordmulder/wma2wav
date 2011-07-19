@@ -42,14 +42,17 @@ public:
 	bool getNextSample(BYTE *output, size_t *length, double *timeStamp = NULL, double *sampleDuration = NULL);
 
 private:
+	bool m_isOpen;
+	bool m_isAnalyzed;
+
 	HMODULE m_wmvCore;
 	IWMSyncReader *m_reader;
 	WAVEFORMATEX *m_format;
 	DWORD m_outputNum;
 	WORD m_streamNum;
-	GUID m_mediaSubType;
 	
-	bool m_isOpen;
-	bool m_isAnalyzed;
+	bool findAudioStream(void);
+	bool setOutputFormat(void);
+	bool getOutputFormat(void);
 };
 

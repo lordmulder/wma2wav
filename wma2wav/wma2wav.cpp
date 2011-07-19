@@ -283,7 +283,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		
 	if(!wmaReader->getFormat(&format))
 	{
-		cerr << "Internal error, aborting! (0x01)" << endl;
+		cerr << "Failed\n\nInternal error, aborting! (0x01)" << endl;
 		_exit(-1);
 	}
 
