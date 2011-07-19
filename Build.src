@@ -4,5 +4,6 @@
 *.sln
 wma2wav\*.cpp
 wma2wav\*.h
+wma2wav\*.vcproj
 wma2wav\*.vcxproj
 wma2wav\*.vcxproj.filters
