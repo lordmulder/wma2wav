@@ -29,6 +29,7 @@
 #include <Objbase.h>
 #include <io.h>
 #include <float.h>
+#include <limits>
 
 using namespace std;
 

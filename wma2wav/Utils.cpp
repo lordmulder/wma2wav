@@ -21,6 +21,7 @@
 
 #include "utils.h"
 #include <io.h>
+#include <math.h>
 
 static UINT old_cp = CP_ACP;
 
