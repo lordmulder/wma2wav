@@ -96,3 +96,9 @@ double bytes_to_time(size_t bytes, WAVEFORMATEX *format)
 	return static_cast<double>(bytes / (format->wBitsPerSample / 8) / format->nChannels) / static_cast<double>(format->nSamplesPerSec);
 }
 
+const char *ltrim(const char *const text)
+{
+	const char *ptr = text;
+	while(ptr[0] == 0x20) ptr++;
+	return ptr;
+}

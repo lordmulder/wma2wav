@@ -314,6 +314,21 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	{
 		cerr << "OK\nConfiguring output format... " << flush;
 
+		OSVERSIONINFO osVersion;
+		SecureZeroMemory(&osVersion, sizeof(OSVERSIONINFO));
+		osVersion.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+
+		if(GetVersionEx(&osVersion))
+		{
+			if(osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT)
+			{
+				if((osVersion.dwMajorVersion == 5) && (osVersion.dwMinorVersion < 1))
+				{
+					format.nChannels = CLIP3(1, format.nChannels, 2);
+				}
+			}
+		}
+
 		format.wFormatTag = WAVE_FORMAT_PCM;
 		format.wBitsPerSample = CLIP3(1, (format.wBitsPerSample / 8), 3) * 8;
 		format.nBlockAlign = (format.wBitsPerSample * format.nChannels) / 8;
@@ -353,12 +368,12 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	{
 		if(temp = utf16_to_utf8(param.codecName))
 		{
-			fprintf(stderr, "sCodecName: %s\n", temp);
+			fprintf(stderr, "sCodecName: %s\n", ltrim(temp));
 			SAFE_DELETE_ARRAY(temp);
 		}
 		if(temp = utf16_to_utf8(param.codecInfo))
 		{
-			fprintf(stderr, "sCodecInfo: %s\n", temp);
+			fprintf(stderr, "sCodecInfo: %s\n", ltrim(temp));
 			SAFE_DELETE_ARRAY(temp);
 		}
 	}
