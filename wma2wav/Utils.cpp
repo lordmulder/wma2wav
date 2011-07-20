@@ -102,3 +102,13 @@ const char *ltrim(const char *const text)
 	while(ptr[0] == 0x20) ptr++;
 	return ptr;
 }
+
+void fix_format_pcm(WAVEFORMATEX *format)
+{
+	format->wFormatTag = WAVE_FORMAT_PCM;
+	format->nChannels = CLIP3(1, format->nChannels, 8);
+	format->nSamplesPerSec = CLIP3(8000, format->nSamplesPerSec, 192000);
+	format->wBitsPerSample = CLIP3(1, (format->wBitsPerSample / 8), 3) * 8;
+	format->nBlockAlign = (format->wBitsPerSample * format->nChannels) / 8;
+	format->nAvgBytesPerSec = format->nBlockAlign * format->nSamplesPerSec;
+}

@@ -50,7 +50,7 @@ CWmaReader::CWmaReader(void)
 
 	if(!(m_wmvCore != NULL))
 	{
-		throw "Fatal Error: Failed to load WMVCORE.DLL libraray!";
+		throw "Fatal Error: Failed to load WMVCORE.DLL libraray!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
 	
 	wchar_t wmvCorePath[1024];
@@ -85,13 +85,13 @@ CWmaReader::CWmaReader(void)
 	
 	if(!(pWMCreateSyncReader != NULL))
 	{
-		throw "Fatal Error: Entry point 'WMVCORE.DLL::WMCreateSyncReader' not be found!";
+		throw "Fatal Error: Entry point 'WMVCORE.DLL::WMCreateSyncReader' not found!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
 	
 	if(pWMCreateSyncReader(NULL, 0, &m_reader) != S_OK)
 	{
 		m_reader = NULL;
-		throw "Fatal Error: Failed to create IWMSyncReader interface!";
+		throw "Fatal Error: Failed to create IWMSyncReader interface!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
 }
 
@@ -114,6 +114,7 @@ bool CWmaReader::getRuntimeVersion(wchar_t *version, size_t size)
 	if(m_wmvCoreVersion[0] || m_wmvCoreVersion[1] || m_wmvCoreVersion[2] || m_wmvCoreVersion[3])
 	{
 		swprintf_s(version, size, L"%u.%u.%u.%u", m_wmvCoreVersion[0], m_wmvCoreVersion[1], m_wmvCoreVersion[2], m_wmvCoreVersion[3]);
+		if(m_wmvCoreVersion[0] < 9) wcscat_s(version, size, L" (UNSUPPORTED)");
 		return true;
 	}
 	else

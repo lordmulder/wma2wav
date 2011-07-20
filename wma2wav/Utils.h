@@ -29,6 +29,7 @@ void seconds_to_minutes(double seconds, double *minutes_part, double *seconds_pa
 size_t time_to_bytes(double time, WAVEFORMATEX *format);
 double bytes_to_time(size_t bytes, WAVEFORMATEX *format);
 const char *ltrim(const char *const text);
+void fix_format_pcm(WAVEFORMATEX *format);
 
 #define SAFE_DELETE(PTR) if(PTR) { delete PTR; PTR = NULL; }
 #define SAFE_DELETE_ARRAY(PTR) if(PTR) { delete [] PTR; PTR = NULL; }

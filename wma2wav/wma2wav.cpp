@@ -33,7 +33,7 @@
 
 using namespace std;
 
-// ----------------------------------------------------------------------------------------------------------
+// ==========================================================================================================
 
 typedef struct
 {
@@ -56,7 +56,7 @@ param_t;
 static bool com_initialized = false;
 static const char *alive = "|/-\\";
 
-// ----------------------------------------------------------------------------------------------------------
+// ==========================================================================================================
 
 static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 {
@@ -181,7 +181,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 	return true;
 }
 
-// ----------------------------------------------------------------------------------------------------------
+// ==========================================================================================================
 
 static int wma2wav(int argc, _TCHAR* argv[])
 {
@@ -234,6 +234,10 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	
 	com_initialized = true;
 
+	//-------------------------------------------------------------------------
+	// Check for input/output file availability
+	//-------------------------------------------------------------------------
+
 	if(temp = utf16_to_utf8(param.inputFile))
 	{
 		fprintf(stderr, "Input file:\t%s\n", temp);
@@ -265,6 +269,10 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			return 3;
 		}
 	}
+
+	//-------------------------------------------------------------------------
+	// Open input file and validate
+	//-------------------------------------------------------------------------
 
 	wmaReader = new CWmaReader();
 
@@ -301,6 +309,10 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		return 6;
 	}
 	
+	//-------------------------------------------------------------------------
+	// Analyze input & setup output format
+	//-------------------------------------------------------------------------
+
 	cerr << "OK\nAnalyzing input file... " << flush;
 
 	if(!wmaReader->analyze(&format))
@@ -313,35 +325,39 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	if(!(param.defaultFormat))
 	{
 		cerr << "OK\nConfiguring output format... " << flush;
-
-		OSVERSIONINFO osVersion;
-		SecureZeroMemory(&osVersion, sizeof(OSVERSIONINFO));
-		osVersion.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-
-		if(GetVersionEx(&osVersion))
+		fix_format_pcm(&format);
+		if(!(wmaReader->configureOutput(&format)))
 		{
-			if(osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT)
+			cerr << "Failed\nConfiguring output format... " << flush;
+			format.nChannels = min(2, format.nChannels);
+			fix_format_pcm(&format);
+			if(!(wmaReader->configureOutput(&format)))
 			{
-				if((osVersion.dwMajorVersion == 5) && (osVersion.dwMinorVersion < 1))
-				{
-					format.nChannels = CLIP3(1, format.nChannels, 2);
-				}
+				cerr << "Failed\nConfiguring output format... " << flush;
+				format.nSamplesPerSec = min(48000, format.nSamplesPerSec);
+				fix_format_pcm(&format);
+				cerr << (wmaReader->configureOutput(&format) ? "OK" : "Failed") << endl;
+			}
+			else
+			{
+				cerr << "OK" << endl;
 			}
 		}
-
-		format.wFormatTag = WAVE_FORMAT_PCM;
-		format.wBitsPerSample = CLIP3(1, (format.wBitsPerSample / 8), 3) * 8;
-		format.nBlockAlign = (format.wBitsPerSample * format.nChannels) / 8;
-		format.nAvgBytesPerSec = format.nBlockAlign * format.nSamplesPerSec;
-
-		cerr << (wmaReader->configureOutput(&format) ? "OK" : "Failed") << endl;
+		else
+		{
+			cerr << "OK" << endl;
+		}
 	}
 	else
 	{
 		cerr << "OK" << endl;
 	}
-		
-	cerr << "Getting output format... " << flush;
+	
+	//-------------------------------------------------------------------------
+	// Detect output audio properties
+	//-------------------------------------------------------------------------
+
+	cerr << "Detecting output format... " << flush;
 
 	if(!wmaReader->getOutputFormat(&format))
 	{
@@ -396,6 +412,10 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	
 	cerr << "nMaxSampleSize: " << bufferLen << endl;
 	cerr << "\nOpening output file... " << flush;
+	
+	//-------------------------------------------------------------------------
+	// Open output file for writing
+	//-------------------------------------------------------------------------
 
 	sink = (!(param.rawOutput)) ? dynamic_cast<CAbstractSink*>(new CWaveWriter()) : dynamic_cast<CAbstractSink*>(new CRawWriter());
 
@@ -413,6 +433,10 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "Dumping audio samples to file, please be patient..." << flush;
 	}
 
+	//-------------------------------------------------------------------------
+	// Main processing loop (dump audio)
+	//-------------------------------------------------------------------------
+	
 	bufferLen = ((bufferLen / 4096) + 1) * 4096;
 	buffer = new BYTE[bufferLen];
 	SecureZeroMemory(buffer, bufferLen);
@@ -556,6 +580,10 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		}
 	}
 
+	//-------------------------------------------------------------------------
+	// Close output and shutdown
+	//-------------------------------------------------------------------------
+
 	if(!sink->close())
 	{
 		cerr << "\n\nError: Failed to properly close the output file!" << endl;
@@ -579,7 +607,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	return 0;
 }
 
-// ----------------------------------------------------------------------------------------------------------
+// ==========================================================================================================
 
 static int wmain2(int argc, _TCHAR* argv[])
 {
