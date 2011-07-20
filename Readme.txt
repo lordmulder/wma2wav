@@ -1,4 +1,4 @@
-wma2wav - Dump WMA/WMV files to Wave Audio [Jul 19 2011]
+wma2wav - Dump WMA/WMV files to Wave Audio [Jul 21 2011]
 Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved.
 Released under the terms of the GNU General Public License.
 
@@ -40,7 +40,9 @@ http://www.codecguide.com/windows_media_codecs.htm
 OS Support
 ----------
 
-The pre-compiled binaries of this tool were compiled with Visual Studio 2010 and therefore will only work on Windows XP with Service Pack 2 or any later version of Microsoft Windows (including Vista and Windows 7). It does NOT run on Windows 2000 though! Please compile with Visual Studio 2008, if you still need Windows 2000 support. The tool has been tested to work with Linux (Ubuntu 11.04) thanks to Wine.
+The pre-compiled binaries of this tool were compiled with Visual Studio 2010 (MSVC 10.0) and therefore will only work on Windows XP with Service Pack 2 or any later version of Microsoft Windows (including Vista and Windows 7). They do NOT run on Windows 2000 though! Please compile with Visual Studio 2008 (MSVC 9.0), if you still need Windows 2000 support. The "x64" (64-Bit) builds will only work on the 64-Bit editions of Vista and Windows 7. Last but not least the tool has been tested to work with Linux (Ubuntu 11.04) thanks to Wine.
+
+Note: Some release packages will contain special "MSVC9" binaries that should work on Windows 2000. These are intended for testing purposes only and are NOT recommended for newer versions of Windows.
 
 
 Sync Correction
