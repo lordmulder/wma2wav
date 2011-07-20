@@ -6,6 +6,7 @@ set "PATH_MSVC=D:\Microsoft Visual Studio 10.0\VC\vcvarsall.bat"
 set "PATH_7ZIP=E:\7-Zip"
 set "PATH_UPX=E:\MPUI\Installer"
 set "PATH_MPRESS=E:\MPress"
+set "MSBUILD_VERBOSITY=normal"
 rem
 rem -------------------------------------------------------------------------
 rem DO NOT MODIFY ANY LINES BELOW THIS LINE !!!
@@ -26,16 +27,16 @@ set /p "ISO_DATE=" < "%DATE_TEMP_FILE%"
 rem
 rem -------------------------------------------------------------------------
 call "%PATH_MSVC%" x86
-msbuild.exe /property:Configuration=Release /property:Platform=Win32 /target:Clean /verbosity:detailed "%PATH_SOLUTION%"
-msbuild.exe /property:Configuration=Release /property:Platform=Win32 /target:Rebuild /verbosity:detailed "%PATH_SOLUTION%"
-msbuild.exe /property:Configuration=Release /property:Platform=Win32 /target:Build /verbosity:detailed "%PATH_SOLUTION%"
+msbuild.exe /property:Configuration=Release /property:Platform=Win32 /target:Clean /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
+msbuild.exe /property:Configuration=Release /property:Platform=Win32 /target:Rebuild /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
+msbuild.exe /property:Configuration=Release /property:Platform=Win32 /target:Build /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
 if not "%ERRORLEVEL%"=="0" goto BUILD_DONE
 rem
 rem -------------------------------------------------------------------------
 call "%PATH_MSVC%" amd64
-msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Clean /verbosity:detailed "%PATH_SOLUTION%"
-msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Rebuild /verbosity:detailed "%PATH_SOLUTION%"
-msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Build /verbosity:detailed "%PATH_SOLUTION%"
+msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Clean /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
+msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Rebuild /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
+msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Build /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
 if not "%ERRORLEVEL%"=="0" goto BUILD_DONE
 rem
 rem -------------------------------------------------------------------------
@@ -49,11 +50,13 @@ rem -------------------------------------------------------------------------
 "%PATH_MPRESS%\mpress.exe" -s "%PATH_TEMP%\wma2wav-x64.exe"
 rem
 rem -------------------------------------------------------------------------
-del /F "%~dp0\wma2wav.%ISO_DATE%.zip"
-"%PATH_7ZIP%\7z.exe" a -tzip "%~dp0\wma2wav.%ISO_DATE%.zip" "%PATH_TEMP%\*.*"
+set "OUTFILENAME=%~dp0\wma2wav.%ISO_DATE%.zip"
+if exist "%OUTFILENAME%" set "OUTFILENAME=%~dp0\wma2wav.%ISO_DATE%.V%RANDOM%.zip"
+"%PATH_7ZIP%\7z.exe" a -tzip "%OUTFILENAME%" "%PATH_TEMP%\*.*"
 if not "%ERRORLEVEL%"=="0" goto BUILD_DONE
 rem
 rem -------------------------------------------------------------------------
+attrib +R "%OUTFILENAME%"
 rmdir /S /Q "%PATH_TEMP%"
 rem
 rem -------------------------------------------------------------------------
