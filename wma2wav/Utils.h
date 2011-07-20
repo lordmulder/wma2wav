@@ -35,4 +35,5 @@ void fix_format_pcm(WAVEFORMATEX *format);
 #define SAFE_DELETE_ARRAY(PTR) if(PTR) { delete [] PTR; PTR = NULL; }
 #define SAFE_COM_UNINIT(FLAG) if(FLAG) { CoUninitialize(); FLAG = false; }
 #define CLIP3(MIN, VAL, MAX) (((VAL) > (MAX)) ? (MAX) : (((VAL) < (MIN)) ? (MIN) : (VAL)))
+#define LIMIT_TO(VAL, MAX) VAL = min((VAL), (MAX))
 #define ROUND(F) (((F) >= 0.0) ? floor((F) + 0.5) : ceil((F) - 0.5))

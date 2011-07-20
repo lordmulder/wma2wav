@@ -204,7 +204,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	short aliveIndex = 0;
 	size_t stats[2] = {0, 0};
 	char *temp = NULL;
-	
+
 	if(!parse_cli(argc, argv, &param))
 	{
 		cerr << "Usage:" << endl;
@@ -329,14 +329,21 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		if(!(wmaReader->configureOutput(&format)))
 		{
 			cerr << "Failed\nConfiguring output format... " << flush;
-			format.nChannels = min(2, format.nChannels);
+			LIMIT_TO(format.nChannels, 2);
 			fix_format_pcm(&format);
 			if(!(wmaReader->configureOutput(&format)))
 			{
 				cerr << "Failed\nConfiguring output format... " << flush;
-				format.nSamplesPerSec = min(48000, format.nSamplesPerSec);
+				LIMIT_TO(format.nSamplesPerSec, 48000);
 				fix_format_pcm(&format);
-				cerr << (wmaReader->configureOutput(&format) ? "OK" : "Failed") << endl;
+				if(!(wmaReader->configureOutput(&format)))
+				{
+					cerr << "Failed" << endl;
+				}
+				else
+				{
+					cerr << "OK" << endl;
+				}
 			}
 			else
 			{
