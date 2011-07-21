@@ -189,6 +189,12 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	cerr << "Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved." << endl;
 	cerr << "Released under the terms of the GNU General Public License.\n" << endl;
 
+#if defined(_DEBUG) || !defined(NDEBUG)
+	set_console_color(stderr, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
+	cerr << "DEBUG VERSION - DEBUG VERSION - DEBUG VERSION - DEBUG VERSION !!!\n" << endl;
+	restore_console_color(stderr);
+#endif
+
 	CAbstractSink *sink = NULL;
 	CWmaReader *wmaReader = NULL;
 	param_t param;

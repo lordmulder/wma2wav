@@ -30,6 +30,8 @@ size_t time_to_bytes(double time, WAVEFORMATEX *format);
 double bytes_to_time(size_t bytes, WAVEFORMATEX *format);
 const char *ltrim(const char *const text);
 void fix_format_pcm(WAVEFORMATEX *format);
+void set_console_color(FILE* file, WORD attributes);
+void restore_console_color(FILE* file);
 
 #define SAFE_DELETE(PTR) if(PTR) { delete PTR; PTR = NULL; }
 #define SAFE_DELETE_ARRAY(PTR) if(PTR) { delete [] PTR; PTR = NULL; }

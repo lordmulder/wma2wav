@@ -22,8 +22,12 @@
 #include "utils.h"
 #include <io.h>
 #include <math.h>
+#include <map>
+
+using namespace std;
 
 static UINT old_cp = CP_ACP;
+static map<FILE*,WORD> old_text_attrib;
 
 char *utf16_to_utf8(const wchar_t *input)
 {
@@ -121,4 +125,24 @@ void fix_format_pcm(WAVEFORMATEX *format)
 	format->wBitsPerSample = CLIP3(1, (format->wBitsPerSample / 8), 3) * 8;
 	format->nBlockAlign = (format->wBitsPerSample * format->nChannels) / 8;
 	format->nAvgBytesPerSec = format->nBlockAlign * format->nSamplesPerSec;
+}
+
+void set_console_color(FILE* file, WORD attributes)
+{
+	const HANDLE hConsole = (HANDLE)(_get_osfhandle(_fileno(file)));
+	CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
+	if(GetConsoleScreenBufferInfo(hConsole, &consoleInfo))
+	{
+		old_text_attrib.insert(pair<FILE*,WORD>(file, consoleInfo.wAttributes));
+	}
+	SetConsoleTextAttribute(hConsole, attributes);
+}
+
+void restore_console_color(FILE* file)
+{
+	if(old_text_attrib.find(file) != old_text_attrib.end())
+	{
+		const HANDLE hConsole = (HANDLE)(_get_osfhandle(_fileno(file)));
+		SetConsoleTextAttribute(hConsole, old_text_attrib[file]);
+	}
 }

@@ -13,6 +13,7 @@ rem DO NOT MODIFY ANY LINES BELOW THIS LINE !!!
 rem -------------------------------------------------------------------------
 set "PATH_SOLUTION=%~dp0\wma2wav.sln"
 set "PATH_RELEASE=%~dp0\Release"
+set "PATH_DEBUG=%~dp0\Debug"
 set "PATH_TEMP=%TMP%\~%RANDOM%%RANDOM%.tmp"
 set "DATE_TEMP_FILE=%PATH_TEMP%\build_date.tag"
 rem
@@ -27,20 +28,30 @@ set /p "ISO_DATE=" < "%DATE_TEMP_FILE%"
 rem
 rem -------------------------------------------------------------------------
 call "%PATH_MSVC%" x86
-msbuild.exe /property:Configuration=Release /property:Platform=Win32 /target:Clean /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
-msbuild.exe /property:Configuration=Release /property:Platform=Win32 /target:Rebuild /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
-msbuild.exe /property:Configuration=Release /property:Platform=Win32 /target:Build /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
+set "MSBUILD_PARAMS=/property:Configuration=Release /property:Platform=Win32 /verbosity:%MSBUILD_VERBOSITY%"
+msbuild.exe %MSBUILD_PARAMS% /target:Clean "%PATH_SOLUTION%"
+msbuild.exe %MSBUILD_PARAMS% /target:Rebuild "%PATH_SOLUTION%"
+msbuild.exe %MSBUILD_PARAMS% /target:Build "%PATH_SOLUTION%"
+if not "%ERRORLEVEL%"=="0" goto BUILD_DONE
+rem
+rem -------------------------------------------------------------------------
+set "MSBUILD_PARAMS=/property:Configuration=Debug /property:Platform=Win32 /verbosity:%MSBUILD_VERBOSITY%"
+msbuild.exe %MSBUILD_PARAMS% /target:Clean "%PATH_SOLUTION%"
+msbuild.exe %MSBUILD_PARAMS% /target:Rebuild "%PATH_SOLUTION%"
+msbuild.exe %MSBUILD_PARAMS% /target:Build "%PATH_SOLUTION%"
 if not "%ERRORLEVEL%"=="0" goto BUILD_DONE
 rem
 rem -------------------------------------------------------------------------
 call "%PATH_MSVC%" amd64
-msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Clean /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
-msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Rebuild /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
-msbuild.exe /property:Configuration=Release /property:Platform=x64 /target:Build /verbosity:%MSBUILD_VERBOSITY% "%PATH_SOLUTION%"
+set "MSBUILD_PARAMS=/property:Configuration=Release /property:Platform=x64 /verbosity:%MSBUILD_VERBOSITY%"
+msbuild.exe %MSBUILD_PARAMS% /target:Clean "%PATH_SOLUTION%"
+msbuild.exe %MSBUILD_PARAMS% /target:Rebuild "%PATH_SOLUTION%"
+msbuild.exe %MSBUILD_PARAMS% /target:Build "%PATH_SOLUTION%"
 if not "%ERRORLEVEL%"=="0" goto BUILD_DONE
 rem
 rem -------------------------------------------------------------------------
 copy "%PATH_RELEASE%\Win32\wma2wav.exe" "%PATH_TEMP%\wma2wav.exe"
+copy "%PATH_DEBUG%\Win32\wma2wav.exe" "%PATH_TEMP%\wma2wav-dbg.exe"
 copy "%PATH_RELEASE%\x64\wma2wav.exe" "%PATH_TEMP%\wma2wav-x64.exe"
 copy "%~dp0\*.txt" "%PATH_TEMP%"
 rem
