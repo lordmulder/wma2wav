@@ -473,12 +473,9 @@ bool CWmaReader::getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t siz
 	wchar_t *temp = NULL;
 	IWMHeaderInfo2* pHdrInfo = NULL;
 	bool foundInfo = false;
-	
-	PING;
 
 	if(m_reader->QueryInterface(IID_IWMHeaderInfo2,(void**)&pHdrInfo) == S_OK)
 	{
-		PING;
 		DWORD codecCount = 0;
 
 		if(pHdrInfo->GetCodecInfoCount(&codecCount) == S_OK)
@@ -494,27 +491,20 @@ bool CWmaReader::getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t siz
 				{
 					if(codecInfoType == WMT_CODECINFO_AUDIO)
 					{
-						PING;
-
 						wchar_t *buffName = new wchar_t[sizeName+1];
 						wchar_t *buffDesc = new wchar_t[sizeDesc+1];
 						BYTE *buffInfo = new BYTE[sizeInfo];
 
 						if(pHdrInfo->GetCodecInfo(i, &sizeName, buffName, &sizeDesc, buffDesc, &codecInfoType, &sizeInfo, buffInfo) == S_OK)
 						{
-							PING;
 							if(wcslen(buffName) > 0) wcsncpy_s(codecName, size, buffName, _TRUNCATE);
-							PING;
 							if(wcslen(buffDesc) > 0) wcsncpy_s(codecInfo, size, buffDesc, _TRUNCATE);
-							PING;
 							foundInfo = true;
 						}
 
-						PING;
 						SAFE_DELETE_ARRAY(buffName);
 						SAFE_DELETE_ARRAY(buffDesc);
 						SAFE_DELETE_ARRAY(buffInfo);
-						PING;
 					}
 				}
 			}
