@@ -111,13 +111,13 @@ bool CWmaReader::getRuntimeVersion(wchar_t *version, size_t size)
 {
 	if(m_wmvCoreVersion[0] || m_wmvCoreVersion[1] || m_wmvCoreVersion[2] || m_wmvCoreVersion[3])
 	{
-		swprintf_s(version, size, L"%u.%u.%u.%u", m_wmvCoreVersion[0], m_wmvCoreVersion[1], m_wmvCoreVersion[2], m_wmvCoreVersion[3]);
-		if(m_wmvCoreVersion[0] < 9) wcscat_s(version, size, L" (UNSUPPORTED)");
+		_snwprintf_s(version, size, _TRUNCATE, L"%u.%u.%u.%u", m_wmvCoreVersion[0], m_wmvCoreVersion[1], m_wmvCoreVersion[2], m_wmvCoreVersion[3]);
+		if(m_wmvCoreVersion[0] < 9) wcsncat_s(version, size, L" (UNSUPPORTED)", _TRUNCATE);
 		return true;
 	}
 	else
 	{
-		swprintf_s(version, size, L"N/A");
+		_snwprintf_s(version, size, _TRUNCATE, L"N/A");
 		return false;
 	}
 }
