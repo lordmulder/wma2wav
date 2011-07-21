@@ -557,7 +557,7 @@ bool CWmaReader::getTitle(wchar_t *title, size_t size)
 				
 					if(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, reinterpret_cast<BYTE*>(temp), &attrSize) == S_OK)
 					{
-						wcsncpy_s(title, min(size, static_cast<size_t>(strLen)), temp, _TRUNCATE);
+						wcsncpy_s(title, size, temp, _TRUNCATE);
 						foundInfo = true;
 					}
 
