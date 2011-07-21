@@ -29,9 +29,7 @@ typedef HRESULT (__stdcall *WMCreateSyncReaderProc)(IUnknown* pUnkCert, DWORD dw
 typedef HRESULT (__stdcall *WMIsContentProtectedProc)(const WCHAR *pwszFileName, BOOL *pfIsProtected);
 typedef HRESULT (__stdcall *WMValidateDataProc)(BYTE *pbData, DWORD *pdwDataSize);
 
-
 #define LOAD_LIBRARY_SEARCH_SYSTEM32 0x00000800
-#define CHECK_MEDIA_TYPE(S,X,Y,T) if(X == Y) { wcscpy_s(S, size, L##T); }
 
 CWmaReader::CWmaReader(void)
 {
@@ -464,8 +462,8 @@ double CWmaReader::getDuration(void)
 
 bool CWmaReader::getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t size)
 {
-	wcscpy_s(codecName, size, L"Unknown");
-	wcscpy_s(codecInfo, size, L"Unknown");
+	wcsncpy_s(codecName, size, L"Unknown", _TRUNCATE);
+	wcsncpy_s(codecInfo, size, L"Unknown", _TRUNCATE);
 	
 	if(!(m_isOpen && m_isAnalyzed))
 	{
@@ -476,8 +474,11 @@ bool CWmaReader::getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t siz
 	IWMHeaderInfo2* pHdrInfo = NULL;
 	bool foundInfo = false;
 	
+	PING;
+
 	if(m_reader->QueryInterface(IID_IWMHeaderInfo2,(void**)&pHdrInfo) == S_OK)
 	{
+		PING;
 		DWORD codecCount = 0;
 
 		if(pHdrInfo->GetCodecInfoCount(&codecCount) == S_OK)
@@ -493,20 +494,27 @@ bool CWmaReader::getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t siz
 				{
 					if(codecInfoType == WMT_CODECINFO_AUDIO)
 					{
-						wchar_t *buffName = new wchar_t[sizeName];
-						wchar_t *buffDesc = new wchar_t[sizeDesc];
+						PING;
+
+						wchar_t *buffName = new wchar_t[sizeName+1];
+						wchar_t *buffDesc = new wchar_t[sizeDesc+1];
 						BYTE *buffInfo = new BYTE[sizeInfo];
 
 						if(pHdrInfo->GetCodecInfo(i, &sizeName, buffName, &sizeDesc, buffDesc, &codecInfoType, &sizeInfo, buffInfo) == S_OK)
 						{
-							if(wcslen(buffName) > 0) wcscpy_s(codecName, size, buffName);
-							if(wcslen(buffDesc) > 0) wcscpy_s(codecInfo, size, buffDesc);
+							PING;
+							if(wcslen(buffName) > 0) wcsncpy_s(codecName, size, buffName, _TRUNCATE);
+							PING;
+							if(wcslen(buffDesc) > 0) wcsncpy_s(codecInfo, size, buffDesc, _TRUNCATE);
+							PING;
 							foundInfo = true;
 						}
 
+						PING;
 						SAFE_DELETE_ARRAY(buffName);
 						SAFE_DELETE_ARRAY(buffDesc);
 						SAFE_DELETE_ARRAY(buffInfo);
+						PING;
 					}
 				}
 			}
@@ -521,7 +529,7 @@ bool CWmaReader::getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t siz
 
 bool CWmaReader::getTitle(wchar_t *title, size_t size)
 {
-	wcscpy_s(title, size, L"Unknown");
+	wcsncpy_s(title, size, L"Unknown", _TRUNCATE);
 	
 	if(!(m_isOpen && m_isAnalyzed))
 	{
@@ -545,11 +553,11 @@ bool CWmaReader::getTitle(wchar_t *title, size_t size)
 				
 				if(strLen > 1)
 				{
-					wchar_t *temp = new wchar_t[strLen];
+					wchar_t *temp = new wchar_t[strLen+1];
 				
 					if(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, reinterpret_cast<BYTE*>(temp), &attrSize) == S_OK)
 					{
-						wcscpy_s(title, size, temp);
+						wcsncpy_s(title, min(size, static_cast<size_t>(strLen)), temp, _TRUNCATE);
 						foundInfo = true;
 					}
 

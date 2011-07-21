@@ -364,13 +364,18 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	// Detect output audio properties
 	//-------------------------------------------------------------------------
 
+	PING;
+
 	cerr << "Detecting output format... " << flush;
 
 	if(!wmaReader->getOutputFormat(&format))
 	{
+		PING;
 		cerr << "Failed\n\nInternal Error: Could not determine output format." << endl;
 		return 8;
 	}
+
+	PING;
 
 	cerr << "OK\n\n[Audio Properties]" << endl;
 	cerr << "wFormatTag: " << hex << format.wFormatTag << dec << endl;
@@ -380,43 +385,60 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	cerr << "nAvgBytesPerSec: " << format.nAvgBytesPerSec << endl;
 	cerr << "nBlockAlign: " << format.nBlockAlign << endl;
 
+	PING;
+
 	if((duration = wmaReader->getDuration()) > 0.0)
 	{
+		PING;
 		double duration_minutes, duration_seconds;
 		seconds_to_minutes(duration, &duration_minutes, &duration_seconds);
 		fprintf(stderr, "fDuration: %.0f:%04.1f\n", duration_minutes, duration_seconds);
 	}
 	
+	PING;
+	
 	if(wmaReader->getCodecInfo(param.codecName, param.codecInfo, 128))
 	{
+		PING;
 		if(temp = utf16_to_utf8(param.codecName))
 		{
+			PING;
 			fprintf(stderr, "sCodecName: %s\n", ltrim(temp));
 			SAFE_DELETE_ARRAY(temp);
 		}
 		if(temp = utf16_to_utf8(param.codecInfo))
 		{
+			PING;
 			fprintf(stderr, "sCodecInfo: %s\n", ltrim(temp));
 			SAFE_DELETE_ARRAY(temp);
 		}
 	}
 
+	PING;
+
 	if(wmaReader->getTitle(param.title, 128))
 	{
+		PING;
 		if(temp = utf16_to_utf8(param.title))
 		{
-			fprintf(stderr, "sTitle: %s\n", temp);
+			PING;
+			fprintf(stderr, "sTitle: %s\n", ltrim(temp));
 			SAFE_DELETE_ARRAY(temp);
 		}
 	}
 
+	PING;
+
 	if((bufferLen = wmaReader->getSampleSize()) < 1)
 	{
+		PING;
 		cerr << "\nFailed to detect maximum sample size!" << endl;
 		SAFE_DELETE(wmaReader);
 		return 9;
 	}
 	
+	PING;
+
 	cerr << "nMaxSampleSize: " << bufferLen << endl;
 	cerr << "\nOpening output file... " << flush;
 	
@@ -616,6 +638,13 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 // ==========================================================================================================
 
+void invalid_param_handler(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
+{
+	fprintf(stderr, "\nInternal Error: Invalid parameters handler was invoked.\n");
+	fprintf(stderr, "This incident should be reported to the developer!\n");
+	TerminateProcess(GetCurrentProcess(), -1);
+}
+
 static int wmain2(int argc, _TCHAR* argv[])
 {
 	try
@@ -643,6 +672,8 @@ static int wmain2(int argc, _TCHAR* argv[])
 
 int wmain(int argc, _TCHAR* argv[])
 {
+	_set_invalid_parameter_handler(invalid_param_handler);
+
 	__try
 	{
 		repair_standard_streams();

@@ -37,3 +37,9 @@ void fix_format_pcm(WAVEFORMATEX *format);
 #define CLIP3(MIN, VAL, MAX) (((VAL) > (MAX)) ? (MAX) : (((VAL) < (MIN)) ? (MIN) : (VAL)))
 #define LIMIT_TO(VAL, MAX) VAL = min((VAL), (MAX))
 #define ROUND(F) (((F) >= 0.0) ? floor((F) + 0.5) : ceil((F) - 0.5))
+
+#ifdef _DEBUG
+#define PING cerr << "\n\nPING: " << __FILE__ << " @ " << __LINE__ << "\n" << endl
+#else
+#define PING
+#endif

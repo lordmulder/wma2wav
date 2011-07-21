@@ -31,10 +31,15 @@ char *utf16_to_utf8(const wchar_t *input)
 	int BuffSize, Result;
 
 	BuffSize = WideCharToMultiByte(CP_UTF8, 0, input, -1, NULL, 0, NULL, NULL);
-	Buffer = new char[BuffSize]; //(char*) malloc(sizeof(char) * BuffSize);
-	Result = WideCharToMultiByte(CP_UTF8, 0, input, -1, Buffer, BuffSize, NULL, NULL);
+	
+	if(BuffSize > 0)
+	{
+		Buffer = new char[BuffSize]; //(char*) malloc(sizeof(char) * BuffSize);
+		Result = WideCharToMultiByte(CP_UTF8, 0, input, -1, Buffer, BuffSize, NULL, NULL);
+		return ((Result > 0) && (Result <= BuffSize)) ? Buffer : NULL;
+	}
 
-	return ((Result > 0) && (Result <= BuffSize)) ? Buffer : NULL;
+	return NULL;
 }
 
 wchar_t *utf8_to_utf16(const char *input)
@@ -43,10 +48,15 @@ wchar_t *utf8_to_utf16(const char *input)
 	int BuffSize, Result;
 
 	BuffSize = MultiByteToWideChar(CP_UTF8, 0, input, -1, NULL, 0);
-	Buffer = new wchar_t[BuffSize]; //(wchar_t*) malloc(sizeof(wchar_t) * BuffSize);
-	Result = MultiByteToWideChar(CP_UTF8, 0, input, -1, Buffer, BuffSize);
 
-	return ((Result > 0) && (Result <= BuffSize)) ? Buffer : NULL;
+	if(BuffSize > 0)
+	{
+		Buffer = new wchar_t[BuffSize]; //(wchar_t*) malloc(sizeof(wchar_t) * BuffSize);
+		Result = MultiByteToWideChar(CP_UTF8, 0, input, -1, Buffer, BuffSize);
+		return ((Result > 0) && (Result <= BuffSize)) ? Buffer : NULL;
+	}
+
+	return NULL;
 }
 
 void repair_standard_streams(void)
