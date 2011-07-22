@@ -25,11 +25,13 @@
 
 using namespace std;
 
+typedef BOOL (__stdcall *SetDllDirectoryProc)(LPCWSTR lpPathName);
 typedef HRESULT (__stdcall *WMCreateSyncReaderProc)(IUnknown* pUnkCert, DWORD dwRights, IWMSyncReader **ppSyncReader);
 typedef HRESULT (__stdcall *WMIsContentProtectedProc)(const WCHAR *pwszFileName, BOOL *pfIsProtected);
 typedef HRESULT (__stdcall *WMValidateDataProc)(BYTE *pbData, DWORD *pdwDataSize);
 
-#define LOAD_LIBRARY_SEARCH_SYSTEM32 0x00000800
+#define LOAD_LIBRARY_SEARCH_DEFAULT_DIRS 0x00001000 
+#define NANOTIME_TO_DOUBLE(T) (static_cast<double>((T) / 1000) / 10000.0)
 
 CWmaReader::CWmaReader(void)
 {
@@ -44,7 +46,17 @@ CWmaReader::CWmaReader(void)
 	m_outputNum = -1;
 	m_streamNum = -1;
 
-	m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
+	if(HMODULE hKernel = LoadLibraryExW(L"kernel32.dll", 0, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS))
+	{
+		SetDllDirectoryProc pSetDllDirectory = reinterpret_cast<SetDllDirectoryProc>(GetProcAddress(hKernel, "SetDllDirectoryW"));
+		if(pSetDllDirectory)
+		{
+			pSetDllDirectory(L"");
+		}
+		FreeLibrary(hKernel);
+	}
+
+	m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 
 	if(!(m_wmvCore != NULL))
 	{
@@ -79,7 +91,7 @@ CWmaReader::CWmaReader(void)
 		SAFE_DELETE_ARRAY(verInfo);
 	}
 
-	WMCreateSyncReaderProc pWMCreateSyncReader = reinterpret_cast<WMCreateSyncReaderProc>(GetProcAddress(m_wmvCore, "WMCreateSyncReader"));	
+	WMCreateSyncReaderProc pWMCreateSyncReader = reinterpret_cast<WMCreateSyncReaderProc>(GetProcAddress(m_wmvCore, "WMCreateSyncReader"));
 	
 	if(!(pWMCreateSyncReader != NULL))
 	{
@@ -252,13 +264,22 @@ bool CWmaReader::analyze(WAVEFORMATEX *format)
 
 	if(_findAudioStream(format))
 	{
-		DWORD outputNum = 0;
+		BOOL isCompressed = TRUE;
+		m_reader->SetReadStreamSamples(m_streamNum, FALSE);
 		
-		if(m_reader->GetOutputNumberForStream(m_streamNum, &outputNum) == S_OK)
+		if(m_reader->GetReadStreamSamples(m_streamNum, &isCompressed) == S_OK)
 		{
-			m_isAnalyzed = true;
-			m_outputNum = outputNum;
-			return true;
+			if(!(isCompressed))
+			{
+				DWORD outputNum = 0;
+		
+				if(m_reader->GetOutputNumberForStream(m_streamNum, &outputNum) == S_OK)
+				{
+					m_isAnalyzed = true;
+					m_outputNum = outputNum;
+					return true;
+				}
+			}
 		}
 	}
 
@@ -448,7 +469,7 @@ double CWmaReader::getDuration(void)
 
 				if(pHdrInfo->GetAttributeByName(&stream, g_wszWMDuration, &dType, (BYTE*)&pValue, &size) == S_OK)
 				{
-					duration = static_cast<double>((*reinterpret_cast<QWORD*>(pValue)) / 1000) / 10000.0;
+					duration = NANOTIME_TO_DOUBLE(*reinterpret_cast<QWORD*>(pValue));
 				}
 			}
 		}
@@ -620,81 +641,11 @@ bool CWmaReader::getNextSample(BYTE *output, size_t *length, double *timeStamp, 
 	memcpy(output, bufferPtr, bufferLen);
 	*length = bufferLen;
 	
-	if(timeStamp) *timeStamp = static_cast<double>(time / 1000) / 10000.0;
-	if(sampleDuration) *sampleDuration = static_cast<double>(duration / 1000) / 10000.0;
+	if(timeStamp) *timeStamp = NANOTIME_TO_DOUBLE(time);
+	if(sampleDuration) *sampleDuration = NANOTIME_TO_DOUBLE(duration);
 	
 	buffer->Release();
 	buffer = NULL;
 	
 	return true;
 }
-
-
-	//DWORD outputCount = 0;
-
-	//if(m_reader->GetOutputCount(&outputCount) != S_OK)
-	//{
-	//	return false;
-	//}
-
-	//bool foundAudioStream = false;
-
-	//for(DWORD i = 0; i < outputCount; i++)
-	//{
-	//	if(foundAudioStream)
-	//	{
-	//		break;
-	//	}
-	//	
-	//	IWMOutputMediaProps *props = NULL;
-	//	
-	//	if(m_reader->GetOutputProps(i, &props) == S_OK)
-	//	{
-	//		DWORD size = 0;
-
-	//		if(props->GetMediaType(NULL, &size) == S_OK)
-	//		{
-	//			char *buffer =  new char[size];
-	//			WM_MEDIA_TYPE *mediaType = reinterpret_cast<WM_MEDIA_TYPE*>(buffer);
-	//			
-	//			if(props->GetMediaType(mediaType, &size) == S_OK)
-	//			{
-	//				if(mediaType->formattype == WMFORMAT_WaveFormatEx)
-	//				{
-	//					WORD streamNum = -1;
-	//					
-	//					if(m_reader->GetStreamNumberForOutput(i, &streamNum) == S_OK)
-	//					{
-	//						if(m_reader->SetReadStreamSamples(streamNum, FALSE) == S_OK)
-	//						{
-	//							BOOL isCompressed = TRUE;
-	//						
-	//							if(m_reader->GetReadStreamSamples(streamNum, &isCompressed) == S_OK)
-	//							{
-	//								if(isCompressed == FALSE)
-	//								{
-	//									m_format = new WAVEFORMATEX;
-	//									memcpy(m_format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
-	//									m_outputNum = i;
-	//									m_streamNum = streamNum;
-	//									memcpy(&m_mediaSubType, &(mediaType->subtype), sizeof(GUID));
-	//									foundAudioStream = true;
-	//								}
-	//							}
-	//						}
-	//					}
-	//				}
-	//			}
-	//			
-	//			delete [] buffer;
-	//		}
-
-	//		props->Release();
-	//		props = NULL;
-	//	}
-	//}
-
-	//if(foundAudioStream)
-	//{
-	//	m_isAnalyzed = true;
-	//}
