@@ -1,8 +1,14 @@
-wma2wav - Dump WMA/WMV files to Wave Audio [Jul 21 2011]
+wma2wav - Dump WMA/WMV files to Wave Audio
 Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved.
 Released under the terms of the GNU General Public License.
 
 http://code.google.com/p/mulder/
+
+
+Introduction
+------------
+
+wma2wav is a simple command-line tool for decoding/converting Windows Media Audio (WMA) streams to uncompressed Wave Audio files or to "raw" PCM data. It supports all WMA versions up to 10.0, including but not limited to the "Professional", "Lossless" and "Voice" variants. All ASF (Advanced Systems Format) files containing WMA audio, including ".WMA" and ".WMV" files, can be processed as input. Note, however, that this tool does *not* circumvent any DRM (Digital Rights Management) restrictions, i.e. encrypted/protected files can *not* be processed.
 
 
 Usage Instructions
@@ -29,20 +35,20 @@ Example:
 Prerequisites
 -------------
 
-This tool requires the Windows Media Format Runtime. Version 9 or later should work, Version 11 is recommended.
+This tool uses the Windows Media Format Runtime, so the Windows Media Format Runtime must be installed on the computer. Version 9 of the Windows Media Format Runtime should be sufficient, but version 11 or later is recommended.
 
-The Windows Media Format Runtime is included with Windows as part of Windows Media Player. So you should normally only need to install the Format Runtime if you have removed Windows Media Player or if you are using the special European 'N' or Korean 'KN' edition of Windows that does not include WMP. It also is required to install the Windows Media Format Runtime if you are on Wine/Linux.
+The Windows Media Format Runtime is included with Windows as part of the Windows Media Player (WMP). So you should only need to download and install the Windows Media Format Runtime separately, if you have removed Windows Media Player or if you are using the special European 'N' or Korean 'KN' edition of Windows that does NOT include Windows Media Player. Moreover it may be required to download and install the Windows Media Format Runtime separately, if you are running this tool under Wine/Linux.
 
-For more info and Windows Media Format Runtime downloads, please look at this web-site:
+For more information about the Windows Media Format Runtime, please visit the following web-site:
 http://www.codecguide.com/windows_media_codecs.htm
 
 
 OS Support
 ----------
 
-The pre-compiled binaries of this tool were compiled with Visual Studio 2010 (MSVC 10.0) and therefore will only work on Windows XP with Service Pack 2 or any later version of Microsoft Windows (including Vista and Windows 7). They do NOT run on Windows 2000 though! Please compile with Visual Studio 2008 (MSVC 9.0), if you still need Windows 2000 support. The "x64" (64-Bit) builds will only work on the 64-Bit editions of Vista and Windows 7. Last but not least the tool has been tested to work with Linux (Ubuntu 11.04) thanks to Wine.
+The pre-compiled binaries of this tool were compiled with Visual Studio 2010 (MSVC 10.0) and therefore will only work on Windows XP with Service Pack 2 or any later version of Microsoft Windows (including Vista and Windows 7). They do NOT run on Windows 2000 though! There is a special Visual Studio 2008 (MSVC 9.0) binary included, which should run on Windows 2000. Moreover there is a "x64" (64-Bit) binary that will run on the 64-Bit editions of Vista and Windows 7 only. Last but not least this tool has been tested to work under Linux (Ubuntu 11.04), thanks to Wine.
 
-Note: Some release packages will contain special "MSVC9" binaries that should work on Windows 2000. These are intended for testing purposes only and are NOT recommended for newer versions of Windows.
+Note: The "debug" binary is intended for testing/debugging purposes only and should NOT be used for normal operation.
 
 
 Sync Correction
