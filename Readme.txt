@@ -1,8 +1,10 @@
-wma2wav - Dump WMA/WMV files to Wave Audio
+wma2wav - Dump WMA/WMV files to uncompressed Wave Audio
 Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved.
-Released under the terms of the GNU General Public License.
-
 http://code.google.com/p/mulder/
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License <http://www.gnu.org/>.
+Note that this program is distributed with ABSOLUTELY NO WARRANTY.
 
 
 Introduction
