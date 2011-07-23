@@ -50,6 +50,7 @@ typedef struct
 	wchar_t rtVersion[128];
 	wchar_t *inputFile;
 	wchar_t *outputFile;
+	double maxTime;
 }
 param_t;
 
@@ -69,6 +70,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 	param->noCompensation = false;
 	param->alternativeMode = false;
 	param->defaultFormat = false;
+	param->maxTime = numeric_limits<double>::infinity();
 	char *temp = NULL;
 
 	for(int i = 1; i < argc; i++)
@@ -106,6 +108,24 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 				}
 				return false;
 			}
+		}
+		if(!_wcsicmp(argv[i], L"-t"))
+		{
+			if(i < (argc - 1))
+			{
+				param->maxTime = abs(_wtof(argv[++i]));
+				continue;
+			}
+			else
+			{
+				if(temp = utf16_to_utf8(argv[i]))
+				{
+					fprintf(stderr, "Argument missing for command-line option:\n%s\n\n", temp);
+					SAFE_DELETE_ARRAY(temp);
+				}
+				return false;
+			}
+			continue;
 		}
 		if(!_wcsicmp(argv[i], L"-f"))
 		{
@@ -221,7 +241,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "Options:" << endl;
 		cerr << "  -i <input>   Select input ASF (WMA/WMV) file to read from" << endl;
 		cerr << "  -o <output>  Select output Wave file to write to, specify \"-\" for STDOUT" << endl;
-		cerr << "  -f           Force overwrite of output file (if already exists)" << endl;
+		cerr << "  -t <time>    Maximum number of seconds to dump (will stop at maximum)" << endl;
+		cerr << "  -f           Force overwrite of output file, if file already exists" << endl;
 		cerr << "  -r           Output \"raw\" PCM data to file instead of Wave/RIFF file" << endl;
 		cerr << "  -s           Silent mode, do not display progress indicator" << endl;
 		cerr << "  -x           Use the \"alternative\" timestamp calculation mode" << endl;
@@ -229,7 +250,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -n           No sync correction (can not use with '-a' or '-x')" << endl;
 		cerr << "  -d           Use \"default\" audio output format (e.g. Stereo, 16-Bit)\n" << endl;
 		cerr << "Example:" << endl;
-		cerr << "  wma2wav.exe \"c:\\my music\\input.wma\" \"c:\\temp\\output.wav\"\n" << endl;
+		cerr << "  wma2wav.exe -i \"c:\\my music\\input.wma\" -o \"c:\\my music\\output.wav\"\n" << endl;
 		return 1;
 	}
 
@@ -394,6 +415,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		double duration_minutes, duration_seconds;
 		seconds_to_minutes(duration, &duration_minutes, &duration_seconds);
 		fprintf(stderr, "fDuration: %.0f:%04.1f\n", duration_minutes, duration_seconds);
+		duration = min(duration, param.maxTime);
 	}
 	
 	if(wmaReader->getCodecInfo(param.codecName, param.codecInfo, 128))
@@ -480,7 +502,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			fflush(stderr);
 		}
 		
-		indicator = (indicator + 1) % 25;
+		indicator = (indicator + 1) % 50;
 		
 		double sampleDuration = -1.0;
 		double sampleTimestamp = -1.0;
@@ -495,7 +517,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 			return 11;
 		}
 		
-		if(!(sampleLen > 0))
+		if(!((sampleLen > 0) && (currentTime < param.maxTime)))
 		{
 			if(!(param.silentMode))
 			{
