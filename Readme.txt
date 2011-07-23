@@ -71,7 +71,7 @@ Changelog
 ---------
 
 [2011-07-22] Fixed a bug which could cause the application to crash, when the Title, Codec Name or Codec Info of an ASF file exceeded a length of 128 characters.
-[2011-07-24] Workaround for a bug in LoadLibraryEx() that could cause loading WMVCORE.DLL to fail or even make the application crash (on certain systems).
+[2011-07-24] Workaround for a bug in LoadLibraryEx() that could cause loading WMVCORE.DLL to fail or even make the application crash on certain systems (e.g. 64-Bit Vista without KB2533623)
 
 
 eof.
