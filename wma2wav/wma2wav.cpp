@@ -142,7 +142,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 			param->defaultFormat = true;
 			continue;
 		}
-		
+				
 		if(temp = utf16_to_utf8(argv[i]))
 		{
 			fprintf(stderr, "Unknown command-line option:\n%s\n\n", temp);
@@ -185,9 +185,12 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 
 static int wma2wav(int argc, _TCHAR* argv[])
 {
-	cerr << "wma2wav - Dump WMA/WMV files to Wave Audio [" __DATE__ "]" << endl;
+	cerr << "wma2wav - Dump WMA/WMV files to uncompressed Wave Audio" << endl;
 	cerr << "Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved." << endl;
-	cerr << "Released under the terms of the GNU General Public License.\n" << endl;
+	cerr << "Built on "__DATE__" at " __TIME__ " with " __COMPILER__ " for " __ARCH__ "\n" << endl;
+	cerr << "This program is free software; you can redistribute it and/or modify" << endl;
+	cerr << "it under the terms of the GNU General Public License <http://www.gnu.org/>." << endl;
+	cerr << "Note that this program is distributed with ABSOLUTELY NO WARRANTY.\n" << endl;
 
 #if defined(_DEBUG) || !defined(NDEBUG)
 	set_console_color(stderr, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);

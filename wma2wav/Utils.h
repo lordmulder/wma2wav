@@ -40,6 +40,42 @@ void restore_console_color(FILE* file);
 #define LIMIT_TO(VAL, MAX) VAL = min((VAL), (MAX))
 #define ROUND(F) (((F) >= 0.0) ? floor((F) + 0.5) : ceil((F) - 0.5))
 
+#if defined(__INTEL_COMPILER)
+#if (__INTEL_COMPILER >= 1200)
+#define __COMPILER__ "ICL 12.x"
+#elif (__INTEL_COMPILER >= 1100)
+#define __COMPILER__ "ICL 11.x"
+#elif (__INTEL_COMPILER >= 1000)
+#define __COMPILER__ "ICL 10.x"
+#else
+#error Compiler is not supported!
+#endif
+#elif defined(_MSC_VER)
+#if (_MSC_VER == 1600)
+#if (_MSC_FULL_VER >= 160040219)
+#define __COMPILER__ "MSVC 10.0-SP1"
+#else
+#define __COMPILER__ "MSVC 10.0"
+#endif
+#elif (_MSC_VER == 1500)
+#if (_MSC_FULL_VER >= 150030729)
+#define __COMPILER__ "MSVC 9.0-SP1"
+#else
+#define __COMPILER__ "MSVC 9.0"
+#endif
+#else
+#error Compiler is not supported!
+#endif
+#else
+#error Compiler is not supported!
+#endif
+
+#if defined(_M_X64)
+#define __ARCH__ "x64"
+#else
+#define __ARCH__ "x86"
+#endif
+
 #ifdef _DEBUG
 #define PING cerr << "\n\nPING: " << __FILE__ << " @ " << __LINE__ << "\n" << endl
 #else
