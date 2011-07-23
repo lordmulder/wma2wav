@@ -30,8 +30,8 @@ typedef HRESULT (__stdcall *WMCreateSyncReaderProc)(IUnknown* pUnkCert, DWORD dw
 typedef HRESULT (__stdcall *WMIsContentProtectedProc)(const WCHAR *pwszFileName, BOOL *pfIsProtected);
 typedef HRESULT (__stdcall *WMValidateDataProc)(BYTE *pbData, DWORD *pdwDataSize);
 
-#define LOAD_LIBRARY_SEARCH_DEFAULT_DIRS 0x00001000 
 #define NANOTIME_TO_DOUBLE(T) (static_cast<double>((T) / 1000) / 10000.0)
+#define VALID_HANDLE(H) (((H) != NULL) && ((H) != INVALID_HANDLE_VALUE))
 
 CWmaReader::CWmaReader(void)
 {
@@ -45,8 +45,10 @@ CWmaReader::CWmaReader(void)
 	m_reader = NULL;
 	m_outputNum = -1;
 	m_streamNum = -1;
+	
+	HMODULE hKernel = LoadLibraryW(L"kernel32.dll");
 
-	if(HMODULE hKernel = LoadLibraryExW(L"kernel32.dll", 0, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS))
+	if(VALID_HANDLE(hKernel))
 	{
 		SetDllDirectoryProc pSetDllDirectory = reinterpret_cast<SetDllDirectoryProc>(GetProcAddress(hKernel, "SetDllDirectoryW"));
 		if(pSetDllDirectory)
@@ -54,17 +56,18 @@ CWmaReader::CWmaReader(void)
 			pSetDllDirectory(L"");
 		}
 		FreeLibrary(hKernel);
+		hKernel = NULL;
 	}
 
-	m_wmvCore = LoadLibraryExW(L"wmvcore.dll", 0, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+	m_wmvCore = LoadLibraryW(L"wmvcore.dll");
 
-	if(!(m_wmvCore != NULL))
+	if(!(VALID_HANDLE(m_wmvCore)))
 	{
 		throw "Fatal Error: Failed to load WMVCORE.DLL libraray!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
 	
 	wchar_t wmvCorePath[1024];
-	
+
 	if(GetModuleFileNameW(m_wmvCore, wmvCorePath, 1024))
 	{
 		wmvCorePath[1023] = L'\0';
@@ -92,12 +95,12 @@ CWmaReader::CWmaReader(void)
 	}
 
 	WMCreateSyncReaderProc pWMCreateSyncReader = reinterpret_cast<WMCreateSyncReaderProc>(GetProcAddress(m_wmvCore, "WMCreateSyncReader"));
-	
+
 	if(!(pWMCreateSyncReader != NULL))
 	{
 		throw "Fatal Error: Entry point 'WMVCORE.DLL::WMCreateSyncReader' not found!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
-	
+
 	if(pWMCreateSyncReader(NULL, 0, &m_reader) != S_OK)
 	{
 		m_reader = NULL;
@@ -112,7 +115,7 @@ CWmaReader::~CWmaReader(void)
 		m_reader->Release();
 		m_reader = NULL;
 	}
-	if(m_wmvCore)
+	if(VALID_HANDLE(m_wmvCore))
 	{
 		FreeLibrary(m_wmvCore);
 		m_wmvCore = NULL;
@@ -600,11 +603,12 @@ size_t CWmaReader::getSampleSize(void)
 	return 0;
 }
 
-bool CWmaReader::getNextSample(BYTE *output, size_t *length, double *timeStamp, double *sampleDuration)
+bool CWmaReader::getNextSample(BYTE *output, const size_t size, size_t *length, double *timeStamp, double *sampleDuration)
 {
 	*length = 0;
 	if(timeStamp) *timeStamp = -1.0;
 	if(sampleDuration) *sampleDuration = -1.0;
+	SecureZeroMemory(output, size);
 
 	if(!(m_isOpen && m_isAnalyzed))
 	{
@@ -633,6 +637,12 @@ bool CWmaReader::getNextSample(BYTE *output, size_t *length, double *timeStamp, 
 	}
 
 	if(buffer->GetBuffer(&bufferPtr) != S_OK)
+	{
+		buffer->Release();
+		return false;
+	}
+
+	if(bufferLen > size)
 	{
 		buffer->Release();
 		return false;

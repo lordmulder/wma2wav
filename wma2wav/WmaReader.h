@@ -42,7 +42,7 @@ public:
 	double getDuration(void);
 	bool getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t size);
 	bool getTitle(wchar_t *title, size_t size);
-	bool getNextSample(BYTE *output, size_t *length, double *timeStamp = NULL, double *sampleDuration = NULL);
+	bool getNextSample(BYTE *output, const size_t size, size_t *length, double *timeStamp = NULL, double *sampleDuration = NULL);
 
 private:
 	bool m_isOpen;

@@ -483,7 +483,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		double sampleTimestamp = -1.0;
 		size_t skipBytes = 0;
 
-		if(!wmaReader->getNextSample(buffer, &sampleLen, &sampleTimestamp, &sampleDuration))
+		if(!wmaReader->getNextSample(buffer, bufferLen, &sampleLen, &sampleTimestamp, &sampleDuration))
 		{
 			cerr << "\n\nFailed to read sample from input file!" << endl;
 			SAFE_DELETE(sink);
