@@ -22,7 +22,8 @@ Usage:
 Options:
   -i <input>   Select input ASF (WMA/WMV) file to read from
   -o <output>  Select output Wave file to write to, specify "-" for STDOUT
-  -f           Force overwrite of output file (if already exists)
+  -t <time>    Maximum number of seconds to dump (will stop at maximum)
+  -f           Force overwrite of output file, if file already exists
   -r           Output "raw" PCM data to file instead of Wave/RIFF file
   -s           Silent mode, do not display progress indicator
   -x           Use the "alternative" timestamp calculation mode
@@ -31,7 +32,7 @@ Options:
   -d           Use "default" audio output format (e.g. Stereo, 16-Bit)
 
 Example:
-  wma2wav.exe "c:\my music\input.wma" "c:\temp\output.wav"
+  wma2wav.exe -i "c:\my music\input.wma" -o "c:\my music\output.wav"
 
 
 Prerequisites
