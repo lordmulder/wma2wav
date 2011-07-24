@@ -41,6 +41,7 @@ bool SecureLoadLibrary(HMODULE *module, const wchar_t* fileName);
 #define LIMIT_TO(VAL, MAX) VAL = min((VAL), (MAX))
 #define ROUND(F) (((F) >= 0.0) ? floor((F) + 0.5) : ceil((F) - 0.5))
 #define VALID_HANDLE(H) (((H) != NULL) && ((H) != INVALID_HANDLE_VALUE))
+#define STREQ(STR1, STR2) (_wcsicmp(STR1, STR2) == 0)
 
 #if defined(__INTEL_COMPILER)
 #if (__INTEL_COMPILER >= 1200)

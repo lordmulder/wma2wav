@@ -56,6 +56,7 @@ typedef struct
 param_t;
 
 static bool com_initialized = false;
+static const char *txt_missingArgument = "Argument missing for command-line option:\n%s\n\n";
 static const char *alive = "|/-\\";
 
 // ==========================================================================================================
@@ -77,7 +78,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 
 	for(int i = 1; i < argc; i++)
 	{
-		if(!_wcsicmp(argv[i], L"-i"))
+		if(STREQ(argv[i], L"-i"))
 		{
 			if(i < (argc - 1))
 			{
@@ -88,13 +89,13 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 			{
 				if(temp = utf16_to_utf8(argv[i]))
 				{
-					fprintf(stderr, "Argument missing for command-line option:\n%s\n\n", temp);
+					fprintf(stderr, txt_missingArgument, temp);
 					SAFE_DELETE_ARRAY(temp);
 				}
 				return false;
 			}
 		}
-		if(!_wcsicmp(argv[i], L"-o"))
+		if(STREQ(argv[i], L"-o"))
 		{
 			if(i < (argc - 1))
 			{
@@ -105,13 +106,13 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 			{
 				if(temp = utf16_to_utf8(argv[i]))
 				{
-					fprintf(stderr, "Argument missing for command-line option:\n%s\n\n", temp);
+					fprintf(stderr, txt_missingArgument, temp);
 					SAFE_DELETE_ARRAY(temp);
 				}
 				return false;
 			}
 		}
-		if(!_wcsicmp(argv[i], L"-t"))
+		if(STREQ(argv[i], L"-t"))
 		{
 			if(i < (argc - 1))
 			{
@@ -122,50 +123,49 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 			{
 				if(temp = utf16_to_utf8(argv[i]))
 				{
-					fprintf(stderr, "Argument missing for command-line option:\n%s\n\n", temp);
+					fprintf(stderr, txt_missingArgument, temp);
 					SAFE_DELETE_ARRAY(temp);
 				}
 				return false;
 			}
-			continue;
 		}
-		if(!_wcsicmp(argv[i], L"-f"))
+		if(STREQ(argv[i], L"-f"))
 		{
 			param->overwriteFlag = true;
 			continue;
 		}
-		if(!_wcsicmp(argv[i], L"-r"))
+		if(STREQ(argv[i], L"-r"))
 		{
 			param->rawOutput = true;
 			continue;
 		}
-		if(!_wcsicmp(argv[i], L"-s"))
+		if(STREQ(argv[i], L"-s"))
 		{
 			param->silentMode = true;
 			continue;
 		}
-		if(!_wcsicmp(argv[i], L"-a"))
+		if(STREQ(argv[i], L"-a"))
 		{
 			param->aggressiveMode = true;
 			continue;
 		}
-		if(!_wcsicmp(argv[i], L"-n"))
+		if(STREQ(argv[i], L"-n"))
 		{
 			param->noCompensation = true;
 			continue;
 		}
-		if(!_wcsicmp(argv[i], L"-x"))
+		if(STREQ(argv[i], L"-x"))
 		{
 			param->alternativeMode = true;
 			continue;
 		}
-		if(!_wcsicmp(argv[i], L"-d"))
+		if(STREQ(argv[i], L"-d"))
 		{
 			param->defaultFormat = true;
 			continue;
 		}
 		
-		if((!_wcsicmp(argv[i], L"-h")) || (!_wcsicmp(argv[i], L"-?")) || (!_wcsicmp(argv[i], L"/?")) || (!_wcsicmp(argv[i], L"--help")))
+		if(STREQ(argv[i], L"-h") || STREQ(argv[i], L"-?") || STREQ(argv[i], L"/?") || STREQ(argv[i], L"-help") || STREQ(argv[i], L"--help"))
 		{
 			param->showHelp = true;
 			return true;
@@ -200,7 +200,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 		return false;
 	}
 
-	if((!_wcsicmp(param->outputFile, L"-")) && (!(param->rawOutput)))
+	if(STREQ(param->outputFile, L"-") && (!(param->rawOutput)))
 	{
 		cerr << "Output to STDOUT requires \"raw\" mode -> switching to \"raw\" mode!\n" << endl;
 		param->rawOutput = true;
@@ -221,8 +221,8 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	cerr << "Note that this program is distributed with ABSOLUTELY NO WARRANTY.\n" << endl;
 
 #if defined(_DEBUG) || !defined(NDEBUG)
-	set_console_color(stderr, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
-	cerr << "DEBUG VERSION - DEBUG VERSION - DEBUG VERSION - DEBUG VERSION !!!\n" << endl;
+	set_console_color(stderr, BACKGROUND_INTENSITY | BACKGROUND_RED);
+	cerr << "!!! DEBUG VERSION - DEBUG VERSION - DEBUG VERSION - DEBUG VERSION !!!\n" << endl;
 	restore_console_color(stderr);
 #endif
 
@@ -288,7 +288,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		fprintf(stderr, "Input file:\t%s\n", temp);
 		SAFE_DELETE_ARRAY(temp);
 	}
-	if(_wcsicmp(param.outputFile, L"-"))
+	if(!STREQ(param.outputFile, L"-"))
 	{
 		if(temp = utf16_to_utf8(param.outputFile))
 		{
@@ -306,7 +306,7 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "\nError: Input file could not be found or access denied!" << endl;
 		return 2;
 	}
-	if(_wcsicmp(param.outputFile, L"-") && _wcsicmp(param.outputFile, L"NUL") && (!(param.overwriteFlag)))
+	if(!(STREQ(param.outputFile, L"-") || STREQ(param.outputFile, L"NUL") || param.overwriteFlag))
 	{
 		if(!_waccess(param.outputFile, 4))
 		{
