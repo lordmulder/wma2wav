@@ -151,7 +151,7 @@ void set_console_color(FILE* file, WORD attributes)
 {
 	EnterCriticalSection(&g_lock);
 
-	__try
+	try
 	{
 		const HANDLE hConsole = (HANDLE)(_get_osfhandle(_fileno(file)));
 		CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
@@ -161,17 +161,19 @@ void set_console_color(FILE* file, WORD attributes)
 		}
 		SetConsoleTextAttribute(hConsole, attributes);
 	}
-	__finally
+	catch(...)
 	{
-		LeaveCriticalSection(&g_lock);
+		OutputDebugStringA("set_console_color: Exception Error!");
 	}
+	
+	LeaveCriticalSection(&g_lock);
 }
 
 void restore_console_color(FILE* file)
 {
 	EnterCriticalSection(&g_lock);
 
-	__try
+	try
 	{
 		if(g_old_text_attrib.find(file) != g_old_text_attrib.end())
 		{
@@ -179,10 +181,12 @@ void restore_console_color(FILE* file)
 			SetConsoleTextAttribute(hConsole, g_old_text_attrib[file]);
 		}
 	}
-	__finally
+	catch(...)
 	{
-		LeaveCriticalSection(&g_lock);
+		OutputDebugStringA("set_console_color: Exception Error!");
 	}
+
+	LeaveCriticalSection(&g_lock);
 }
 
 bool SecureLoadLibrary(HMODULE *module, const wchar_t* fileName)

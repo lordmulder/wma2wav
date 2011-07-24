@@ -44,6 +44,7 @@ typedef struct
 	bool noCompensation;
 	bool alternativeMode;
 	bool defaultFormat;
+	bool showHelp;
 	wchar_t title[128];
 	wchar_t codecName[128];
 	wchar_t codecInfo[128];
@@ -70,6 +71,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 	param->noCompensation = false;
 	param->alternativeMode = false;
 	param->defaultFormat = false;
+	param->showHelp = false;
 	param->maxTime = numeric_limits<double>::infinity();
 	char *temp = NULL;
 
@@ -162,7 +164,13 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 			param->defaultFormat = true;
 			continue;
 		}
-				
+		
+		if((!_wcsicmp(argv[i], L"-h")) || (!_wcsicmp(argv[i], L"-?")) || (!_wcsicmp(argv[i], L"/?")) || (!_wcsicmp(argv[i], L"--help")))
+		{
+			param->showHelp = true;
+			return true;
+		}
+
 		if(temp = utf16_to_utf8(argv[i]))
 		{
 			fprintf(stderr, "Unknown command-line option:\n%s\n\n", temp);
@@ -236,6 +244,12 @@ static int wma2wav(int argc, _TCHAR* argv[])
 
 	if(!parse_cli(argc, argv, &param))
 	{
+		cerr << "You can type 'wma2wav.exe -h' for a list of available command-line options.\n" << endl;
+		return 1;
+	}
+
+	if(param.showHelp)
+	{
 		cerr << "Usage:" << endl;
 		cerr << "  wma2wav.exe [options] -i <input> -o <output>\n" << endl;
 		cerr << "Options:" << endl;
@@ -248,10 +262,11 @@ static int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -x           Use the \"alternative\" timestamp calculation mode" << endl;
 		cerr << "  -a           Enable \"aggressive\" sync correction mode (not recommended)" << endl;
 		cerr << "  -n           No sync correction (can not use with '-a' or '-x')" << endl;
-		cerr << "  -d           Use \"default\" audio output format (e.g. Stereo, 16-Bit)\n" << endl;
+		cerr << "  -d           Use \"default\" audio output format (e.g. Stereo, 16-Bit)" << endl;
+		cerr << "  -h           Prints a list of available command-line options\n" << endl;
 		cerr << "Example:" << endl;
 		cerr << "  wma2wav.exe -i \"c:\\my music\\input.wma\" -o \"c:\\my music\\output.wav\"\n" << endl;
-		return 1;
+		return 0;
 	}
 
 	const double maxGapSize = (param.noCompensation) ? numeric_limits<double>::infinity() : ((param.aggressiveMode) ? 0.00000001 : 0.00100001);
