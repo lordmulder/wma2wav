@@ -28,6 +28,8 @@ set /p "ISO_DATE=" < "%DATE_TEMP_FILE%"
 rem
 rem -------------------------------------------------------------------------
 call "%PATH_MSVC%" x86
+rem
+rem -------------------------------------------------------------------------
 set "MSBUILD_PARAMS=/property:Configuration=Release /property:Platform=Win32 /verbosity:%MSBUILD_VERBOSITY%"
 msbuild.exe %MSBUILD_PARAMS% /target:Clean "%PATH_SOLUTION%"
 msbuild.exe %MSBUILD_PARAMS% /target:Rebuild "%PATH_SOLUTION%"
@@ -43,7 +45,16 @@ if not "%ERRORLEVEL%"=="0" goto BUILD_DONE
 rem
 rem -------------------------------------------------------------------------
 call "%PATH_MSVC%" amd64
+rem
+rem -------------------------------------------------------------------------
 set "MSBUILD_PARAMS=/property:Configuration=Release /property:Platform=x64 /verbosity:%MSBUILD_VERBOSITY%"
+msbuild.exe %MSBUILD_PARAMS% /target:Clean "%PATH_SOLUTION%"
+msbuild.exe %MSBUILD_PARAMS% /target:Rebuild "%PATH_SOLUTION%"
+msbuild.exe %MSBUILD_PARAMS% /target:Build "%PATH_SOLUTION%"
+if not "%ERRORLEVEL%"=="0" goto BUILD_DONE
+rem
+rem -------------------------------------------------------------------------
+set "MSBUILD_PARAMS=/property:Configuration=Debug /property:Platform=x64 /verbosity:%MSBUILD_VERBOSITY%"
 msbuild.exe %MSBUILD_PARAMS% /target:Clean "%PATH_SOLUTION%"
 msbuild.exe %MSBUILD_PARAMS% /target:Rebuild "%PATH_SOLUTION%"
 msbuild.exe %MSBUILD_PARAMS% /target:Build "%PATH_SOLUTION%"

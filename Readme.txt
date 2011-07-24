@@ -30,6 +30,7 @@ Options:
   -a           Enable "aggressive" sync correction mode (not recommended)
   -n           No sync correction (can not use with '-a' or '-x')
   -d           Use "default" audio output format (e.g. Stereo, 16-Bit)
+  -h           Prints a list of available command-line options
 
 Example:
   wma2wav.exe -i "c:\my music\input.wma" -o "c:\my music\output.wav"
