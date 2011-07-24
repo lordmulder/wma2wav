@@ -26,6 +26,8 @@
 
 using namespace std;
 
+typedef BOOL (__stdcall *SetDllDirectoryProc)(LPCWSTR lpPathName);
+
 static UINT old_cp = CP_ACP;
 static map<FILE*,WORD> old_text_attrib;
 
@@ -145,4 +147,32 @@ void restore_console_color(FILE* file)
 		const HANDLE hConsole = (HANDLE)(_get_osfhandle(_fileno(file)));
 		SetConsoleTextAttribute(hConsole, old_text_attrib[file]);
 	}
+}
+
+bool SecureLoadLibrary(HMODULE *module, const wchar_t* fileName)
+{
+	*module = NULL;
+	bool success = false;
+	
+	UINT oldErrorMode = SetErrorMode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
+	HMODULE hKernel = LoadLibraryW(L"kernel32.dll");
+
+	if(VALID_HANDLE(hKernel))
+	{
+		SetDllDirectoryProc pSetDllDirectory = reinterpret_cast<SetDllDirectoryProc>(GetProcAddress(hKernel, "SetDllDirectoryW"));
+		if(pSetDllDirectory != NULL) pSetDllDirectory(L"");
+		FreeLibrary(hKernel);
+		hKernel = NULL;
+	}
+
+	HMODULE temp = LoadLibraryW(fileName);
+	
+	if(VALID_HANDLE(temp))
+	{
+		*module = temp;
+		success = true;
+	}
+
+	SetErrorMode(oldErrorMode);
+	return success;
 }

@@ -25,13 +25,11 @@
 
 using namespace std;
 
-typedef BOOL (__stdcall *SetDllDirectoryProc)(LPCWSTR lpPathName);
 typedef HRESULT (__stdcall *WMCreateSyncReaderProc)(IUnknown* pUnkCert, DWORD dwRights, IWMSyncReader **ppSyncReader);
 typedef HRESULT (__stdcall *WMIsContentProtectedProc)(const WCHAR *pwszFileName, BOOL *pfIsProtected);
 typedef HRESULT (__stdcall *WMValidateDataProc)(BYTE *pbData, DWORD *pdwDataSize);
 
 #define NANOTIME_TO_DOUBLE(T) (static_cast<double>((T) / 1000) / 10000.0)
-#define VALID_HANDLE(H) (((H) != NULL) && ((H) != INVALID_HANDLE_VALUE))
 
 CWmaReader::CWmaReader(void)
 {
@@ -45,23 +43,8 @@ CWmaReader::CWmaReader(void)
 	m_reader = NULL;
 	m_outputNum = -1;
 	m_streamNum = -1;
-	
-	HMODULE hKernel = LoadLibraryW(L"kernel32.dll");
 
-	if(VALID_HANDLE(hKernel))
-	{
-		SetDllDirectoryProc pSetDllDirectory = reinterpret_cast<SetDllDirectoryProc>(GetProcAddress(hKernel, "SetDllDirectoryW"));
-		if(pSetDllDirectory)
-		{
-			pSetDllDirectory(L"");
-		}
-		FreeLibrary(hKernel);
-		hKernel = NULL;
-	}
-
-	m_wmvCore = LoadLibraryW(L"wmvcore.dll");
-
-	if(!(VALID_HANDLE(m_wmvCore)))
+	if(!(SecureLoadLibrary(&m_wmvCore, L"wmvcore.dll")))
 	{
 		throw "Fatal Error: Failed to load WMVCORE.DLL libraray!\nWindows Media Format Runtime (Version 9+) is required.";
 	}

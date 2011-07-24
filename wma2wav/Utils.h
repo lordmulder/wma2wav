@@ -32,6 +32,7 @@ const char *ltrim(const char *const text);
 void fix_format_pcm(WAVEFORMATEX *format);
 void set_console_color(FILE* file, WORD attributes);
 void restore_console_color(FILE* file);
+bool SecureLoadLibrary(HMODULE *module, const wchar_t* fileName);
 
 #define SAFE_DELETE(PTR) if(PTR) { delete PTR; PTR = NULL; }
 #define SAFE_DELETE_ARRAY(PTR) if(PTR) { delete [] PTR; PTR = NULL; }
@@ -39,6 +40,7 @@ void restore_console_color(FILE* file);
 #define CLIP3(MIN, VAL, MAX) (((VAL) > (MAX)) ? (MAX) : (((VAL) < (MIN)) ? (MIN) : (VAL)))
 #define LIMIT_TO(VAL, MAX) VAL = min((VAL), (MAX))
 #define ROUND(F) (((F) >= 0.0) ? floor((F) + 0.5) : ceil((F) - 0.5))
+#define VALID_HANDLE(H) (((H) != NULL) && ((H) != INVALID_HANDLE_VALUE))
 
 #if defined(__INTEL_COMPILER)
 #if (__INTEL_COMPILER >= 1200)
