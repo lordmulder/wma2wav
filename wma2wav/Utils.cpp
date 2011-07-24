@@ -28,8 +28,11 @@ using namespace std;
 
 typedef BOOL (__stdcall *SetDllDirectoryProc)(LPCWSTR lpPathName);
 
-static UINT old_cp = CP_ACP;
-static map<FILE*,WORD> old_text_attrib;
+static RTL_CRITICAL_SECTION g_lock;
+static int init_lock(RTL_CRITICAL_SECTION *lock);
+static int g_lock_init_done = init_lock(&g_lock);
+static map<FILE*,WORD> g_old_text_attrib;
+static UINT g_old_cp = CP_ACP;
 
 char *utf16_to_utf8(const wchar_t *input)
 {
@@ -67,31 +70,46 @@ wchar_t *utf8_to_utf16(const char *input)
 
 void repair_standard_streams(void)
 {
-	old_cp = GetConsoleOutputCP();
-	SetConsoleOutputCP(CP_UTF8);
+	EnterCriticalSection(&g_lock);
 
-	int hCrtStdOut = _open_osfhandle((long) GetStdHandle(STD_OUTPUT_HANDLE), 0);
-	int hCrtStdErr = _open_osfhandle((long) GetStdHandle(STD_ERROR_HANDLE), 0);
-
-	if(hCrtStdOut >= 0)
+	__try
 	{
-		FILE *hfStdout = _fdopen(hCrtStdOut, "w");
-		if(hfStdout) *stdout = *hfStdout;
-	}
+		g_old_cp = GetConsoleOutputCP();
+		SetConsoleOutputCP(CP_UTF8);
 
-	if(hCrtStdErr >= 0)
+		int hCrtStdOut = _open_osfhandle((long) GetStdHandle(STD_OUTPUT_HANDLE), 0);
+		int hCrtStdErr = _open_osfhandle((long) GetStdHandle(STD_ERROR_HANDLE), 0);
+
+		if(hCrtStdOut >= 0)
+		{
+			FILE *hfStdout = _fdopen(hCrtStdOut, "w");
+			if(hfStdout) *stdout = *hfStdout;
+		}
+
+		if(hCrtStdErr >= 0)
+		{
+			FILE *hfStderr = _fdopen(hCrtStdErr, "w");
+			if(hfStderr) *stderr = *hfStderr;
+		}
+	}
+	__finally
 	{
-		FILE *hfStderr = _fdopen(hCrtStdErr, "w");
-		if(hfStderr) *stderr = *hfStderr;
+		LeaveCriticalSection(&g_lock);
 	}
-
-	//setvbuf(stdout, NULL, _IONBF, 0);
-	//setvbuf(stderr, NULL, _IONBF, 0);
 }
 
 void restore_previous_codepage(void)
 {
-	SetConsoleOutputCP(old_cp);
+	EnterCriticalSection(&g_lock);
+
+	__try
+	{
+		SetConsoleOutputCP(g_old_cp);
+	}
+	__finally
+	{
+		LeaveCriticalSection(&g_lock);
+	}
 }
 
 void seconds_to_minutes(double seconds, double *minutes_part, double *seconds_part)
@@ -131,21 +149,39 @@ void fix_format_pcm(WAVEFORMATEX *format)
 
 void set_console_color(FILE* file, WORD attributes)
 {
-	const HANDLE hConsole = (HANDLE)(_get_osfhandle(_fileno(file)));
-	CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
-	if(GetConsoleScreenBufferInfo(hConsole, &consoleInfo))
+	EnterCriticalSection(&g_lock);
+
+	__try
 	{
-		old_text_attrib.insert(pair<FILE*,WORD>(file, consoleInfo.wAttributes));
+		const HANDLE hConsole = (HANDLE)(_get_osfhandle(_fileno(file)));
+		CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
+		if(GetConsoleScreenBufferInfo(hConsole, &consoleInfo))
+		{
+			g_old_text_attrib.insert(pair<FILE*,WORD>(file, consoleInfo.wAttributes));
+		}
+		SetConsoleTextAttribute(hConsole, attributes);
 	}
-	SetConsoleTextAttribute(hConsole, attributes);
+	__finally
+	{
+		LeaveCriticalSection(&g_lock);
+	}
 }
 
 void restore_console_color(FILE* file)
 {
-	if(old_text_attrib.find(file) != old_text_attrib.end())
+	EnterCriticalSection(&g_lock);
+
+	__try
 	{
-		const HANDLE hConsole = (HANDLE)(_get_osfhandle(_fileno(file)));
-		SetConsoleTextAttribute(hConsole, old_text_attrib[file]);
+		if(g_old_text_attrib.find(file) != g_old_text_attrib.end())
+		{
+			const HANDLE hConsole = (HANDLE)(_get_osfhandle(_fileno(file)));
+			SetConsoleTextAttribute(hConsole, g_old_text_attrib[file]);
+		}
+	}
+	__finally
+	{
+		LeaveCriticalSection(&g_lock);
 	}
 }
 
@@ -154,25 +190,41 @@ bool SecureLoadLibrary(HMODULE *module, const wchar_t* fileName)
 	*module = NULL;
 	bool success = false;
 	
-	UINT oldErrorMode = SetErrorMode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
-	HMODULE hKernel = LoadLibraryW(L"kernel32.dll");
+	EnterCriticalSection(&g_lock);
 
-	if(VALID_HANDLE(hKernel))
+	__try
 	{
-		SetDllDirectoryProc pSetDllDirectory = reinterpret_cast<SetDllDirectoryProc>(GetProcAddress(hKernel, "SetDllDirectoryW"));
-		if(pSetDllDirectory != NULL) pSetDllDirectory(L"");
-		FreeLibrary(hKernel);
-		hKernel = NULL;
-	}
+		UINT oldErrorMode = SetErrorMode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
+		HMODULE hKernel = LoadLibraryW(L"kernel32.dll");
 
-	HMODULE temp = LoadLibraryW(fileName);
+		if(VALID_HANDLE(hKernel))
+		{
+			SetDllDirectoryProc pSetDllDirectory = reinterpret_cast<SetDllDirectoryProc>(GetProcAddress(hKernel, "SetDllDirectoryW"));
+			if(pSetDllDirectory != NULL) pSetDllDirectory(L"");
+			FreeLibrary(hKernel);
+			hKernel = NULL;
+		}
+
+		HMODULE temp = LoadLibraryW(fileName);
 	
-	if(VALID_HANDLE(temp))
-	{
-		*module = temp;
-		success = true;
-	}
+		if(VALID_HANDLE(temp))
+		{
+			*module = temp;
+			success = true;
+		}
 
-	SetErrorMode(oldErrorMode);
+		SetErrorMode(oldErrorMode);
+	}
+	__finally
+	{
+		LeaveCriticalSection(&g_lock);
+	}
+	
 	return success;
+}
+
+static int init_lock(RTL_CRITICAL_SECTION *lock)
+{
+	InitializeCriticalSection(lock);
+	return TRUE;
 }
