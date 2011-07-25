@@ -7,6 +7,7 @@ set "PATH_7ZIP=C:\Program Files\7-Zip"
 set "PATH_UPX=C:\Program Files\UPX"
 set "PATH_MPRESS=C:\Program Files\MPress"
 set "MSBUILD_VERBOSITY=normal"
+set "MSVC9_INSTALLED=1"
 rem -------------------------------------------------------------------------
 rem DO NOT MODIFY ANY LINES BELOW THIS LINE !!!
 rem -------------------------------------------------------------------------
@@ -43,8 +44,6 @@ set /p "ISO_DATE=" < "%DATE_TEMP_FILE%"
 rem -------------------------------------------------------------------------
 start "" /WAIT cmd.exe /c ""%~dpnx0" "%PATH_SOLUTION%" x86 Win32 Release"
 if %ERRORLEVEL% neq 0 goto BUILD_DONE
-start "" /WAIT cmd.exe /c ""%~dpnx0" "%PATH_SOLUTION%" x86 Win32 Release_VC9"
-if %ERRORLEVEL% neq 0 goto BUILD_DONE
 start "" /WAIT cmd.exe /c ""%~dpnx0" "%PATH_SOLUTION%" x86 Win32 Debug"
 if %ERRORLEVEL% neq 0 goto BUILD_DONE
 start "" /WAIT cmd.exe /c ""%~dpnx0" "%PATH_SOLUTION%" x86_amd64 x64 Release"
@@ -52,16 +51,24 @@ if %ERRORLEVEL% neq 0 goto BUILD_DONE
 start "" /WAIT cmd.exe /c ""%~dpnx0" "%PATH_SOLUTION%" x86_amd64 x64 Debug"
 if %ERRORLEVEL% neq 0 goto BUILD_DONE
 rem -------------------------------------------------------------------------
+if %MSVC9_INSTALLED% neq 0 (
+  start "" /WAIT cmd.exe /c ""%~dpnx0" "%PATH_SOLUTION%" x86 Win32 Release_VC9"
+)
+if %ERRORLEVEL% neq 0 goto BUILD_DONE
+rem -------------------------------------------------------------------------
 copy "%PATH_RELEASE%\Win32\wma2wav.exe" "%PATH_TEMP%\wma2wav.exe"
-copy "%PATH_RELEASE_VC9%\Win32\wma2wav.exe" "%PATH_TEMP%\wma2wav-msvc9.exe"
 copy "%PATH_DEBUG%\Win32\wma2wav.exe" "%PATH_TEMP%\wma2wav-dbg.exe"
 copy "%PATH_RELEASE%\x64\wma2wav.exe" "%PATH_TEMP%\wma2wav-x64.exe"
 copy "%~dp0\*.txt" "%PATH_TEMP%"
 rem -------------------------------------------------------------------------
 "%PATH_7ZIP%\7z.exe" a -ttar "%PATH_TEMP%\wma2wav.tar" "@%~dp0\Build.src"
 "%PATH_UPX%\upx.exe" --brute "%PATH_TEMP%\wma2wav.exe"
-"%PATH_UPX%\upx.exe" --brute "%PATH_TEMP%\wma2wav-msvc9.exe"
 "%PATH_MPRESS%\mpress.exe" -s "%PATH_TEMP%\wma2wav-x64.exe"
+rem -------------------------------------------------------------------------
+if %MSVC9_INSTALLED% neq 0 (
+  copy "%PATH_RELEASE_VC9%\Win32\wma2wav.exe" "%PATH_TEMP%\wma2wav-msvc9.exe"
+  "%PATH_UPX%\upx.exe" --brute "%PATH_TEMP%\wma2wav-msvc9.exe"
+)
 rem -------------------------------------------------------------------------
 set "OUTFILENAME=%~dp0\wma2wav.%ISO_DATE%.zip"
 if exist "%OUTFILENAME%" set "OUTFILENAME=%~dp0\wma2wav.%ISO_DATE%.V%RANDOM%.zip"
