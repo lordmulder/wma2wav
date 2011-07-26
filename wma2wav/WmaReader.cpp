@@ -370,8 +370,7 @@ bool CWmaReader::_findAudioStream(WAVEFORMATEX *format)
 			}
 			else
 			{
-				dbg_printf(L"CWmaReader::analyze: Failed to get stream #%d info, stopping!", static_cast<int>(i));
-				break;
+				dbg_printf(L"CWmaReader::analyze: Failed to get stream #%d info, skipping!", static_cast<int>(i));
 			}
 
 			if(foundAudioStream) break;
