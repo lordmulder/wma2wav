@@ -791,7 +791,7 @@ bool CWmaReader::getNextSample(BYTE *output, const size_t size, size_t *length, 
 	if(timeStamp) *timeStamp = NANOTIME_TO_DOUBLE(time);
 	if(sampleDuration) *sampleDuration = NANOTIME_TO_DOUBLE(duration);
 	
-	dbg_printf(L"CWmaReader::getNextSample: Sample read successfully (time: %I64u, duration %I64u)", time, duration);
+	dbg_printf(L"CWmaReader::getNextSample: Sample read successfully (time: %I64u, duration: %I64u)", time, duration);
 
 	buffer->Release();
 	buffer = NULL;
