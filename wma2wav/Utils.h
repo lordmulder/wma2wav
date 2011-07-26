@@ -82,8 +82,8 @@ bool secure_load_library(HMODULE *module, const wchar_t* fileName);
 
 #ifdef _DEBUG
 #define PING cerr << "\n\nPING: " << __FILE__ << " @ " << __LINE__ << "\n" << endl
-int dbg_printf(wchar_t *format, ...);
+size_t dbg_printf(wchar_t *format, ...);
 #else
 #define PING
-#define dbg_printf(FMT, ...)
+#define dbg_printf(FMT, ...) (0)
 #endif

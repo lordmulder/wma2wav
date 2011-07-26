@@ -280,9 +280,9 @@ bool secure_load_library(HMODULE *module, const wchar_t* fileName)
 }
 
 #ifdef _DEBUG
-int dbg_printf(wchar_t *format, ...)
+size_t dbg_printf(wchar_t *format, ...)
 {
-	int len = 0;
+	size_t len = 0;
 	va_list args;
 	va_start (args, format);
 	if(format)
