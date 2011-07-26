@@ -27,7 +27,6 @@
 #include "RawWriter.h"
 #include "Utils.h"
 
-#include <Objbase.h>
 #include <io.h>
 #include <float.h>
 #include <limits>
@@ -35,8 +34,6 @@
 using namespace std;
 
 // ==========================================================================================================
-
-bool com_initialized = false;
 
 typedef struct
 {
@@ -224,6 +221,7 @@ int wma2wav(int argc, _TCHAR* argv[])
 
 	dbg_printf(L"wma2wav - Dump WMA/WMV files to uncompressed Wave Audio");
 	dbg_printf(L"Built on %S at %S with %S for %S", __DATE__, __TIME__, __COMPILER__, __ARCH__);
+	dbg_printf(NULL, GetCommandLineW());
 
 #if defined(_DEBUG) || !defined(NDEBUG)
 	set_console_color(stderr, BACKGROUND_INTENSITY | BACKGROUND_RED);
@@ -276,13 +274,11 @@ int wma2wav(int argc, _TCHAR* argv[])
 
 	const double maxGapSize = (param.noCompensation) ? numeric_limits<double>::infinity() : ((param.aggressiveMode) ? 0.00000001 : 0.00100001);
 
-	if(CoInitializeEx(NULL, COINIT_MULTITHREADED) != S_OK)
+	if(!(safe_com_init()))
 	{
 		cerr << "Fatal Error: COM initialization has failed unexpectedly!" << endl;
 		_exit(-1);
 	}
-	
-	com_initialized = true;
 
 	//-------------------------------------------------------------------------
 	// Check for input/output file availability

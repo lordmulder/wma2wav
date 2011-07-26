@@ -25,6 +25,8 @@ char *utf16_to_utf8(const wchar_t *input);
 wchar_t *utf8_to_utf16(const char *input);
 void repair_standard_streams(void);
 void restore_previous_codepage(void);
+bool safe_com_init(void);
+bool safe_com_uninit(void);
 void seconds_to_minutes(double seconds, double *minutes_part, double *seconds_part);
 size_t time_to_bytes(double time, WAVEFORMATEX *format);
 double bytes_to_time(size_t bytes, WAVEFORMATEX *format);
@@ -33,11 +35,9 @@ void fix_format_pcm(WAVEFORMATEX *format);
 void set_console_color(FILE* file, WORD attributes);
 void restore_console_color(FILE* file);
 bool secure_load_library(HMODULE *module, const wchar_t* fileName);
-int dbg_printf(wchar_t *format, ...);
 
 #define SAFE_DELETE(PTR) if(PTR) { delete PTR; PTR = NULL; }
 #define SAFE_DELETE_ARRAY(PTR) if(PTR) { delete [] PTR; PTR = NULL; }
-#define SAFE_COM_UNINIT(FLAG) if(FLAG) { CoUninitialize(); FLAG = false; }
 #define CLIP3(MIN, VAL, MAX) (((VAL) > (MAX)) ? (MAX) : (((VAL) < (MIN)) ? (MIN) : (VAL)))
 #define LIMIT_TO(VAL, MAX) VAL = min((VAL), (MAX))
 #define ROUND(F) (((F) >= 0.0) ? floor((F) + 0.5) : ceil((F) - 0.5))
@@ -82,6 +82,8 @@ int dbg_printf(wchar_t *format, ...);
 
 #ifdef _DEBUG
 #define PING cerr << "\n\nPING: " << __FILE__ << " @ " << __LINE__ << "\n" << endl
+int dbg_printf(wchar_t *format, ...);
 #else
 #define PING
+#define dbg_printf(FMT, ...)
 #endif

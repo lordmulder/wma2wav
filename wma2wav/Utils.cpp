@@ -23,6 +23,7 @@
 #include <io.h>
 #include <math.h>
 #include <map>
+#include <Objbase.h>
 
 using namespace std;
 
@@ -31,6 +32,7 @@ typedef BOOL (__stdcall *SetDllDirectoryProc)(LPCWSTR lpPathName);
 static RTL_CRITICAL_SECTION g_lock;
 static int init_lock(RTL_CRITICAL_SECTION *lock);
 static int g_lock_init_done = init_lock(&g_lock);
+static bool g_com_initialized = false;
 static map<FILE*,WORD> g_old_text_attrib;
 static UINT g_old_cp = CP_ACP;
 
@@ -110,6 +112,56 @@ void restore_previous_codepage(void)
 	{
 		LeaveCriticalSection(&g_lock);
 	}
+}
+
+bool safe_com_init(void)
+{
+	bool success = false;
+	EnterCriticalSection(&g_lock);
+
+	if(g_com_initialized)
+	{
+		LeaveCriticalSection(&g_lock);
+		return false;
+	}
+
+	__try
+	{
+		if(CoInitializeEx(NULL, COINIT_MULTITHREADED) == S_OK)
+		{
+			g_com_initialized = true;
+			success = true;
+		}
+	}
+	__finally
+	{
+		LeaveCriticalSection(&g_lock);
+	}
+
+	return success;
+}
+
+bool safe_com_uninit(void)
+{
+	EnterCriticalSection(&g_lock);
+
+	if(!(g_com_initialized))
+	{
+		LeaveCriticalSection(&g_lock);
+		return false;
+	}
+
+	__try
+	{
+		CoUninitialize();
+		g_com_initialized = false;
+	}
+	__finally
+	{
+		LeaveCriticalSection(&g_lock);
+	}
+
+	return true;
 }
 
 void seconds_to_minutes(double seconds, double *minutes_part, double *seconds_part)
@@ -227,16 +279,28 @@ bool secure_load_library(HMODULE *module, const wchar_t* fileName)
 	return success;
 }
 
+#ifdef _DEBUG
 int dbg_printf(wchar_t *format, ...)
 {
-	wchar_t buffer[160];
+	int len = 0;
 	va_list args;
 	va_start (args, format);
-	int len = _vsnwprintf_s(buffer, 160, _TRUNCATE, format, args);
-	if(len > 0) OutputDebugStringW(buffer);
+	if(format)
+	{
+		wchar_t buffer[160];
+		len = _vsnwprintf_s(buffer, 160, _TRUNCATE, format, args);
+		if(len > 0) OutputDebugStringW(buffer);
+	}
+	else
+	{
+		wchar_t *str = va_arg(args, wchar_t*);
+		len = wcslen(str);
+		if(len > 0) OutputDebugStringW(str);
+	}
 	va_end (args);
 	return len;
 }
+#endif
 
 static int init_lock(RTL_CRITICAL_SECTION *lock)
 {

@@ -19,5 +19,4 @@
 // http://www.gnu.org/licenses/gpl-2.0.txt
 ///////////////////////////////////////////////////////////////////////////////
 
-extern bool com_initialized;
 int wma2wav(int argc, _TCHAR* argv[]);

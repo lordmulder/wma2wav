@@ -54,7 +54,7 @@ OS Support
 
 The pre-compiled binaries of this tool were compiled with Visual Studio 2010 (MSVC 10.0) and therefore will only work on Windows XP with Service Pack 2 or any later version of Microsoft Windows (including Vista and Windows 7). They do NOT run on Windows 2000 though! There is a special Visual Studio 2008 (MSVC 9.0) binary included, which should run on Windows 2000. Moreover there is a "x64" (64-Bit) binary that will run on the 64-Bit editions of Vista and Windows 7 only. Last but not least this tool has been tested to work under Linux (Ubuntu 11.04), thanks to Wine.
 
-Note: The "debug" binary is intended for testing/debugging purposes only and should NOT be used for normal operation.
+Note: The "debug" binary is intended for testing/debugging purposes only and should NOT be used for normal operation. You can use 'DebugView for Windows' by Mark Russinovich to display detailed log messages with "debug" builds.
 
 
 Sync Correction

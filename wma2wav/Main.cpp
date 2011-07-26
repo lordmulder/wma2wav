@@ -35,9 +35,7 @@ static int wmain2(int argc, _TCHAR* argv[])
 {
 	try
 	{
-		int result = wma2wav(argc, argv);
-		SAFE_COM_UNINIT(com_initialized);
-		return result;
+		return wma2wav(argc, argv);
 	}
 	catch(std::bad_alloc err)
 	{
@@ -64,6 +62,7 @@ int wmain(int argc, _TCHAR* argv[])
 	{
 		repair_standard_streams();
 		int result = wmain2(argc, argv);
+		safe_com_uninit();
 		restore_previous_codepage();
 		return result;
 	}
