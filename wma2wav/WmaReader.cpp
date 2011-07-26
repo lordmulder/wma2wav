@@ -44,8 +44,11 @@ CWmaReader::CWmaReader(void)
 	m_outputNum = -1;
 	m_streamNum = -1;
 
-	if(!(SecureLoadLibrary(&m_wmvCore, L"wmvcore.dll")))
+	dbg_printf(L"CWmaReader::CWmaReader: Initializing WMVCORE.DLL");
+
+	if(!(secure_load_library(&m_wmvCore, L"wmvcore.dll")))
 	{
+		dbg_printf(L"CWmaReader::CWmaReader: LoadLibrary for WMVCORE.DLL has failed!");
 		throw "Fatal Error: Failed to load WMVCORE.DLL libraray!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
 	
@@ -77,18 +80,31 @@ CWmaReader::CWmaReader(void)
 		SAFE_DELETE_ARRAY(verInfo);
 	}
 
+	if(m_wmvCoreVersion[0] || m_wmvCoreVersion[1] || m_wmvCoreVersion[2] || m_wmvCoreVersion[3])
+	{
+		dbg_printf(L"CWmaReader::CWmaReader: WMVCORE.DLL v%u.%u.%u.%u loaded successfully", m_wmvCoreVersion[0], m_wmvCoreVersion[1], m_wmvCoreVersion[2], m_wmvCoreVersion[3]);
+	}
+	else
+	{
+		dbg_printf(L"CWmaReader::CWmaReader: WMVCORE.DLL loaded successfully, but version cannot be detected!");
+	}
+
 	WMCreateSyncReaderProc pWMCreateSyncReader = reinterpret_cast<WMCreateSyncReaderProc>(GetProcAddress(m_wmvCore, "WMCreateSyncReader"));
 
 	if(!(pWMCreateSyncReader != NULL))
 	{
+		dbg_printf(L"CWmaReader::CWmaReader: Entry point 'WMCreateSyncReader' could not be resolved in WMVCORE.DLL");
 		throw "Fatal Error: Entry point 'WMVCORE.DLL::WMCreateSyncReader' not found!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
 
 	if(pWMCreateSyncReader(NULL, 0, &m_reader) != S_OK)
 	{
 		m_reader = NULL;
+		dbg_printf(L"CWmaReader::CWmaReader: Function 'WMCreateSyncReader' has failed, reader could not be created");
 		throw "Fatal Error: Failed to create IWMSyncReader interface!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
+
+	dbg_printf(L"CWmaReader::CWmaReader: IWMSyncReader was created successfully");
 }
 
 CWmaReader::~CWmaReader(void)
@@ -261,11 +277,20 @@ bool CWmaReader::analyze(WAVEFORMATEX *format)
 		
 				if(m_reader->GetOutputNumberForStream(m_streamNum, &outputNum) == S_OK)
 				{
+					dbg_printf(L"CWmaReader::analyze: Output number for stream #%d is %u, analysis completed", static_cast<int>(m_streamNum), outputNum);
 					m_isAnalyzed = true;
 					m_outputNum = outputNum;
 					return true;
 				}
 			}
+			else
+			{
+				dbg_printf(L"CWmaReader::analyze: Stream is configured to deliver compressed samples, rejected!");
+			}
+		}
+		else
+		{
+			dbg_printf(L"CWmaReader::analyze: Failed to determine whether stream delivers compressed samples!");
 		}
 	}
 
@@ -284,6 +309,7 @@ bool CWmaReader::_findAudioStream(WAVEFORMATEX *format)
 		for(WORD i = 1; i < 64; i++)
 		{
 			IWMStreamConfig *pIWMStreamConfig = NULL;
+			dbg_printf(L"CWmaReader::analyze: Analyzing stream #%d", static_cast<int>(i));
 		
 			if(pIWMProfile->GetStreamByNumber(i, &pIWMStreamConfig) == S_OK)
 			{
@@ -294,6 +320,7 @@ bool CWmaReader::_findAudioStream(WAVEFORMATEX *format)
 					if(streamType == WMMEDIATYPE_Audio)
 					{
 						IWMMediaProps *pIWMMediaProps = NULL;
+						dbg_printf(L"CWmaReader::analyze: Stream #%d appears to be an audio stream", static_cast<int>(i));
 
 						if(pIWMStreamConfig->QueryInterface(IID_IWMMediaProps, (void**)&pIWMMediaProps) == S_OK)
 						{
@@ -306,11 +333,18 @@ bool CWmaReader::_findAudioStream(WAVEFORMATEX *format)
 				
 								if(pIWMMediaProps->GetMediaType(mediaType, &mediaTypeSize) == S_OK)
 								{
+									dbg_printf(L"CWmaReader::analyze: Media type of stream #%d read successfully", static_cast<int>(i));
+									
 									if(mediaType->formattype == WMFORMAT_WaveFormatEx)
 									{
+										dbg_printf(L"CWmaReader::analyze: Format type of stream #%d is WAVEFORMATEX", static_cast<int>(i));
 										m_streamNum = i;
 										memcpy(format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
 										foundAudioStream = true;
+									}
+									else
+									{
+										dbg_printf(L"CWmaReader::analyze: Format type of stream #%d is unsupported!", static_cast<int>(i));
 									}
 								}
 
@@ -320,11 +354,24 @@ bool CWmaReader::_findAudioStream(WAVEFORMATEX *format)
 							pIWMMediaProps->Release();
 							pIWMMediaProps = NULL;
 						}
+						else
+						{
+							dbg_printf(L"CWmaReader::analyze: Failed to query IWMMediaProps interface for stream #%d!", static_cast<int>(i));
+						}
+					}
+					else
+					{
+						dbg_printf(L"CWmaReader::analyze: Not an audio stream, skipping this stream!");
 					}
 				}
 
 				pIWMStreamConfig->Release();
 				pIWMStreamConfig = NULL;
+			}
+			else
+			{
+				dbg_printf(L"CWmaReader::analyze: Failed to get stream #%d info, stopping!", static_cast<int>(i));
+				break;
 			}
 
 			if(foundAudioStream) break;
@@ -332,6 +379,10 @@ bool CWmaReader::_findAudioStream(WAVEFORMATEX *format)
 
 		pIWMProfile->Release();
 		pIWMProfile = NULL;
+	}
+	else
+	{
+		dbg_printf(L"CWmaReader::analyze: Failed to query IWMProfile interface!");
 	}
 
 	return foundAudioStream;

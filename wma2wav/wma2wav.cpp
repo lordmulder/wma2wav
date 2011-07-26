@@ -21,6 +21,7 @@
 
 #include "stdafx.h"
 
+#include "wma2wav.h"
 #include "WmaReader.h"
 #include "WaveWriter.h"
 #include "RawWriter.h"
@@ -34,6 +35,8 @@
 using namespace std;
 
 // ==========================================================================================================
+
+bool com_initialized = false;
 
 typedef struct
 {
@@ -55,7 +58,6 @@ typedef struct
 }
 param_t;
 
-static bool com_initialized = false;
 static const char *txt_missingArgument = "Argument missing for command-line option:\n%s\n\n";
 static const char *alive = "|/-\\";
 
@@ -211,7 +213,7 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 
 // ==========================================================================================================
 
-static int wma2wav(int argc, _TCHAR* argv[])
+int wma2wav(int argc, _TCHAR* argv[])
 {
 	cerr << "wma2wav - Dump WMA/WMV files to uncompressed Wave Audio" << endl;
 	cerr << "Copyright (c) 2011 LoRd_MuldeR <mulder2@gmx.de>. Some rights reserved." << endl;
@@ -219,6 +221,9 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	cerr << "This program is free software; you can redistribute it and/or modify" << endl;
 	cerr << "it under the terms of the GNU General Public License <http://www.gnu.org/>." << endl;
 	cerr << "Note that this program is distributed with ABSOLUTELY NO WARRANTY.\n" << endl;
+
+	dbg_printf(L"wma2wav - Dump WMA/WMV files to uncompressed Wave Audio");
+	dbg_printf(L"Built on %S at %S with %S for %S", __DATE__, __TIME__, __COMPILER__, __ARCH__);
 
 #if defined(_DEBUG) || !defined(NDEBUG)
 	set_console_color(stderr, BACKGROUND_INTENSITY | BACKGROUND_RED);
@@ -658,57 +663,4 @@ static int wma2wav(int argc, _TCHAR* argv[])
 	SAFE_DELETE_ARRAY(buffer);
 
 	return 0;
-}
-
-// ==========================================================================================================
-
-void invalid_param_handler(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
-{
-	fprintf(stderr, "\nInternal Error: Invalid parameters handler was invoked.\n");
-	fprintf(stderr, "This incident should be reported to the developer!\n");
-	TerminateProcess(GetCurrentProcess(), -1);
-}
-
-static int wmain2(int argc, _TCHAR* argv[])
-{
-	try
-	{
-		int result = wma2wav(argc, argv);
-		SAFE_COM_UNINIT(com_initialized);
-		return result;
-	}
-	catch(std::bad_alloc err)
-	{
-		fprintf(stderr, "\nMemory allocation has failed, application will exit!\n");
-		return -1;
-	}
-	catch(char *err)
-	{
-		fprintf(stderr, "\n%s\n", err);
-		return -1;
-	}
-	catch(...)
-	{
-		fprintf(stderr, "\nUnhandeled exception error, application will exit!\n");
-		return -1;
-	}
-}
-
-int wmain(int argc, _TCHAR* argv[])
-{
-	_set_invalid_parameter_handler(invalid_param_handler);
-
-	__try
-	{
-		repair_standard_streams();
-		int result = wmain2(argc, argv);
-		restore_previous_codepage();
-		return result;
-	}
-	__except(1)
-	{
-		fprintf(stderr, "\nUnhandeled system exception, application will exit!\n");
-		TerminateProcess(GetCurrentProcess(), -1);
-		return -1;
-	}
 }

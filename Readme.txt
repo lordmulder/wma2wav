@@ -10,7 +10,9 @@ Note that this program is distributed with ABSOLUTELY NO WARRANTY.
 Introduction
 ------------
 
-wma2wav is a simple command-line tool for decoding/converting Windows Media Audio (WMA) streams to uncompressed Wave Audio files or to "raw" PCM data. It supports all WMA versions up to 10.0, including but not limited to the "Professional", "Lossless" and "Voice" variants. All ASF (Advanced Systems Format) files containing WMA audio, including ".WMA" and ".WMV" files, can be processed as input. Note, however, that this tool does *not* circumvent any DRM (Digital Rights Management) restrictions, i.e. encrypted/protected files can *not* be processed.
+wma2wav is a simple command-line tool for decoding/converting Windows Media Audio (WMA) streams to uncompressed PCM Wave Audio files or to "raw" PCM data. It supports all WMA versions up to 10.0, including but not limited to the "Professional", "Lossless" and "Voice" variants. All ASF (Advanced Systems Format) files containing WMA audio, including ".WMA" and ".WMV" files, can be processed as input. Note, however, that this tool does *not* circumvent any DRM (Digital Rights Management) restrictions, i.e. encrypted/protected files can *not* be processed.
+
+Please do NOT confuse this tool with Nic's 'wma2wav' tool! Nic's tool prepends a Wave/RIFF header to the compressed WMA stream, resulting in a WMA-compressed Wave/RIFF file.
 
 
 Usage Instructions

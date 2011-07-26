@@ -163,7 +163,7 @@ void set_console_color(FILE* file, WORD attributes)
 	}
 	catch(...)
 	{
-		OutputDebugStringA("set_console_color: Exception Error!");
+		dbg_printf(L"set_console_color: Failed to set console attributes (exception error)");
 	}
 	
 	LeaveCriticalSection(&g_lock);
@@ -183,13 +183,13 @@ void restore_console_color(FILE* file)
 	}
 	catch(...)
 	{
-		OutputDebugStringA("set_console_color: Exception Error!");
+		dbg_printf(L"set_console_color: Failed to restore console attributes (exception error)");
 	}
 
 	LeaveCriticalSection(&g_lock);
 }
 
-bool SecureLoadLibrary(HMODULE *module, const wchar_t* fileName)
+bool secure_load_library(HMODULE *module, const wchar_t* fileName)
 {
 	*module = NULL;
 	bool success = false;
@@ -225,6 +225,17 @@ bool SecureLoadLibrary(HMODULE *module, const wchar_t* fileName)
 	}
 	
 	return success;
+}
+
+int dbg_printf(wchar_t *format, ...)
+{
+	wchar_t buffer[160];
+	va_list args;
+	va_start (args, format);
+	int len = _vsnwprintf_s(buffer, 160, _TRUNCATE, format, args);
+	if(len > 0) OutputDebugStringW(buffer);
+	va_end (args);
+	return len;
 }
 
 static int init_lock(RTL_CRITICAL_SECTION *lock)

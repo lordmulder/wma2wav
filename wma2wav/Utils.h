@@ -32,7 +32,8 @@ const char *ltrim(const char *const text);
 void fix_format_pcm(WAVEFORMATEX *format);
 void set_console_color(FILE* file, WORD attributes);
 void restore_console_color(FILE* file);
-bool SecureLoadLibrary(HMODULE *module, const wchar_t* fileName);
+bool secure_load_library(HMODULE *module, const wchar_t* fileName);
+int dbg_printf(wchar_t *format, ...);
 
 #define SAFE_DELETE(PTR) if(PTR) { delete PTR; PTR = NULL; }
 #define SAFE_DELETE_ARRAY(PTR) if(PTR) { delete [] PTR; PTR = NULL; }
