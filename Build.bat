@@ -2,7 +2,7 @@
 rem -------------------------------------------------------------------------
 rem Options
 rem -------------------------------------------------------------------------
-set "PATH_MSVC=C:\Program Files\Microsoft Visual Studio 10.0\VC\vcvarsall.bat"
+set "PATH_MSVC=C:\Program Files\Microsoft Visual Studio 10.0"
 set "PATH_7ZIP=C:\Program Files\7-Zip" 
 set "PATH_UPX=C:\Program Files\UPX"
 set "PATH_MPRESS=C:\Program Files\MPress"
@@ -14,7 +14,7 @@ rem -------------------------------------------------------------------------
 if "%~4"=="" goto BUILD_BEGIN
 rem -------------------------------------------------------------------------
 title MSBuild - %2 %3 %4
-call "%PATH_MSVC%" %~2
+call "%PATH_MSVC%\VC\vcvarsall.bat" %~2
 set "MSBUILD_PARAMS=/property:Configuration=%~4 /property:Platform=%~3 /verbosity:%MSBUILD_VERBOSITY%"
 msbuild.exe %MSBUILD_PARAMS% /target:Clean "%~1"
 msbuild.exe %MSBUILD_PARAMS% /target:Rebuild "%~1"
@@ -34,7 +34,15 @@ set "PATH_TEMP=%TMP%\~%RANDOM%%RANDOM%.tmp"
 set "DATE_TEMP_FILE=%PATH_TEMP%\build_date.tag"
 rem -------------------------------------------------------------------------
 if not exist "%~dp0\etc\date.exe" (
-  echo Error: %~dp0\etc\date.exe not found.
+  echo Error: %~dp0\etc\date.exe not found!
+  goto BUILD_DONE
+)
+if not exist "%PATH_MSVC%\VC\vcvarsall.bat" (
+  echo Error: %PATH_MSVC%\VC\vcvarsall.bat not found!
+  goto BUILD_DONE
+)
+if not exist "%PATH_7ZIP%\7z.exe" (
+  echo Error: %PATH_7ZIP%\7z.exe not found!
   goto BUILD_DONE
 )
 rem -------------------------------------------------------------------------
