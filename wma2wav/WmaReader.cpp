@@ -53,11 +53,11 @@ CWmaReader::CWmaReader(void)
 	m_outputNum = -1;
 	m_streamNum = -1;
 
-	dbg_printf(L"CWmaReader::CWmaReader: Initializing WMVCORE.DLL");
+	dbg_printf(L"Initializing WMVCORE.DLL");
 
 	if(!(secure_load_library(&m_wmvCore, L"wmvcore.dll")))
 	{
-		dbg_printf(L"CWmaReader::CWmaReader: LoadLibrary for WMVCORE.DLL has failed!");
+		dbg_printf(L"LoadLibrary for WMVCORE.DLL has failed!");
 		throw "Fatal Error: Failed to load WMVCORE.DLL libraray!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
 	
@@ -91,29 +91,29 @@ CWmaReader::CWmaReader(void)
 
 	if(m_wmvCoreVersion[0] || m_wmvCoreVersion[1] || m_wmvCoreVersion[2] || m_wmvCoreVersion[3])
 	{
-		dbg_printf(L"CWmaReader::CWmaReader: WMVCORE.DLL v%u.%u.%u.%u loaded successfully", m_wmvCoreVersion[0], m_wmvCoreVersion[1], m_wmvCoreVersion[2], m_wmvCoreVersion[3]);
+		dbg_printf(L"WMVCORE.DLL v%u.%u.%u.%u loaded successfully", m_wmvCoreVersion[0], m_wmvCoreVersion[1], m_wmvCoreVersion[2], m_wmvCoreVersion[3]);
 	}
 	else
 	{
-		dbg_printf(L"CWmaReader::CWmaReader: WMVCORE.DLL loaded successfully, but version cannot be detected!");
+		dbg_printf(L"WMVCORE.DLL loaded successfully, but version cannot be detected!");
 	}
 
 	WMCreateSyncReaderProc pWMCreateSyncReader = reinterpret_cast<WMCreateSyncReaderProc>(GetProcAddress(m_wmvCore, "WMCreateSyncReader"));
 
 	if(!(pWMCreateSyncReader != NULL))
 	{
-		dbg_printf(L"CWmaReader::CWmaReader: Entry point 'WMCreateSyncReader' could not be resolved in WMVCORE.DLL");
+		dbg_printf(L"Entry point 'WMCreateSyncReader' could not be resolved in WMVCORE.DLL");
 		throw "Fatal Error: Entry point 'WMVCORE.DLL::WMCreateSyncReader' not found!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
 
 	IF_FAIL(pWMCreateSyncReader(NULL, 0, &m_reader))
 	{
 		m_reader = NULL;
-		dbg_printf(L"CWmaReader::CWmaReader: Function 'WMCreateSyncReader' has failed, reader could not be created");
+		dbg_printf(L"Function 'WMCreateSyncReader' has failed, reader could not be created");
 		throw "Fatal Error: Failed to create IWMSyncReader interface!\nWindows Media Format Runtime (Version 9+) is required.";
 	}
 
-	dbg_printf(L"CWmaReader::CWmaReader: IWMSyncReader was created successfully");
+	dbg_printf(L"IWMSyncReader was created successfully");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -153,10 +153,12 @@ bool CWmaReader::getRuntimeVersion(wchar_t *version, size_t size)
 
 bool CWmaReader::isValid(const wchar_t *filename)
 {
+	dbg_printf(L"Checking ASF file: %s", filename);
 	WMValidateDataProc pWMValidateData = reinterpret_cast<WMValidateDataProc>(GetProcAddress(m_wmvCore, "WMValidateData"));	
 
 	if(!(pWMValidateData != NULL))
 	{
+		dbg_printf(L"Entry point 'WMVCORE.DLL::WMValidateData' not found, skipping test!");
 		return true;
 	}
 
@@ -168,6 +170,7 @@ bool CWmaReader::isValid(const wchar_t *filename)
 
 	IF_FAIL(pWMValidateData(NULL, &size))
 	{
+		dbg_printf(L"Failed to determine minimum data length for check!");
 		return false;
 	}
 
@@ -175,6 +178,7 @@ bool CWmaReader::isValid(const wchar_t *filename)
 
 	if(_wfopen_s(&file, filename, L"rb"))
 	{
+		dbg_printf(L"Failed to open input file for reading!");
 		SAFE_DELETE_ARRAY(data);
 		return false;
 	}
@@ -183,6 +187,7 @@ bool CWmaReader::isValid(const wchar_t *filename)
 
 	if(len != static_cast<size_t>(size))
 	{
+		dbg_printf(L"Failed to read %u bytes from input file!", size);
 		fclose(file);
 		file = NULL;
 		SAFE_DELETE_ARRAY(data);
@@ -194,15 +199,19 @@ bool CWmaReader::isValid(const wchar_t *filename)
 	switch(result)
 	{
 	case S_OK:
+		dbg_printf(L"File appears to be a valid ASF file", size);
 		isValid = true;
 		break;
 	case NS_E_INVALID_DATA:
+		dbg_printf(L"File does NOT look like a valid ASF file!", size);
 		isValid = false;
 		break;
 	case ASF_E_BUFFERTOOSMALL:
+		dbg_printf(L"Not enough data to validate file, skipping!", size);
 		isValid = true;
 		break;
 	default:
+		dbg_printf(L"Unknown validation error!", size);
 		isValid = false;
 		break;
 	}
@@ -217,10 +226,12 @@ bool CWmaReader::isValid(const wchar_t *filename)
 
 bool CWmaReader::isProtected(const wchar_t *filename)
 {
+	dbg_printf(L"Testing DRM protection of: %s", filename);
 	WMIsContentProtectedProc pWMIsContentProtected = reinterpret_cast<WMIsContentProtectedProc>(GetProcAddress(m_wmvCore, "WMIsContentProtected"));	
 
 	if(!(pWMIsContentProtected != NULL))
 	{
+		dbg_printf(L"Entry point 'WMVCORE.DLL::WMIsContentProtected' not found, skipping test!");
 		return false;
 	}
 
@@ -233,11 +244,14 @@ bool CWmaReader::isProtected(const wchar_t *filename)
 	{
 	case S_FALSE:
 		isProtected = false;
+		dbg_printf(L"The content is unprotected");
 		break;
 	case S_OK:
+		dbg_printf(L"Content is DRM protected: %s", ((flag == TRUE) ? L"YES" : L"NO"));
 		isProtected = (flag == TRUE);
 		break;
 	default:
+		dbg_printf(L"Unknown error, skipping test!");
 		isProtected = false;
 		break;
 	}
@@ -254,13 +268,17 @@ bool CWmaReader::open(const wchar_t *filename)
 		return false;
 	}
 
+	dbg_printf(L"Opening ASF file: %s", filename);
+
 	IF_OK(m_reader->Open(filename))
 	{
+		dbg_printf(L"ASF file opened successfully");
 		m_isOpen = true;
 		m_isAnalyzed = false;
 		return true;
 	}
 
+	dbg_printf(L"IWMSyncReader failed to open ASF file!");
 	return false;
 }
 
@@ -270,9 +288,14 @@ void CWmaReader::close(void)
 {
 	if(m_isOpen)
 	{
+		dbg_printf(L"Closed successfully");
 		m_reader->Close();
 		m_isAnalyzed = false;
 		m_isOpen = false;
+	}
+	else
+	{
+		dbg_printf(L"File is not open, unable to close!");
 	}
 }
 
@@ -284,8 +307,11 @@ bool CWmaReader::analyze(WAVEFORMATEX *format)
 	
 	if((!m_isOpen) || m_isAnalyzed)
 	{
+		dbg_printf(L"File not open yet or already analyzed!");
 		return false;
 	}
+
+	dbg_printf(L"Anaysis of input file started");
 
 	if(_findAudioStream(format))
 	{
@@ -297,33 +323,33 @@ bool CWmaReader::analyze(WAVEFORMATEX *format)
 			if(!(isCompressed))
 			{
 				DWORD outputNum = 0;
-				dbg_printf(L"CWmaReader::analyze: Stream does NOT deliver compressed output samples");
+				dbg_printf(L"Stream does NOT deliver compressed output samples");
 		
 				IF_OK(m_reader->GetOutputNumberForStream(m_streamNum, &outputNum))
 				{
-					dbg_printf(L"CWmaReader::analyze: Output number for stream #%d is %u, analysis completed", static_cast<int>(m_streamNum), outputNum);
+					dbg_printf(L"Output number for stream #%d is %u, analysis completed", static_cast<int>(m_streamNum), outputNum);
 					m_isAnalyzed = true;
 					m_outputNum = outputNum;
 					return true;
 				}
 				else
 				{
-					dbg_printf(L"CWmaReader::analyze: Failed to obtain output number for stream #%d!", static_cast<int>(m_streamNum), outputNum);
+					dbg_printf(L"Failed to obtain output number for stream #%d!", static_cast<int>(m_streamNum));
 				}
 			}
 			else
 			{
-				dbg_printf(L"CWmaReader::analyze: Stream is configured to deliver compressed samples, rejected!");
+				dbg_printf(L"Stream is configured to deliver compressed samples, rejected!");
 			}
 		}
 		else
 		{
-			dbg_printf(L"CWmaReader::analyze: Failed to determine whether stream delivers compressed samples!");
+			dbg_printf(L"Failed to determine whether stream delivers compressed samples!");
 		}
 	}
 	else
 	{
-		dbg_printf(L"CWmaReader::analyze: Audio stream not found, I give up!");
+		dbg_printf(L"Audio stream not found, I give up!");
 	}
 
 	return false;
@@ -338,37 +364,37 @@ bool CWmaReader::_findAudioStream(WAVEFORMATEX *format)
 
 	IF_FAIL(m_reader->QueryInterface(IID_IWMProfile, (void**)&pIWMProfile))
 	{
-		dbg_printf(L"CWmaReader::analyze: Failed to query IWMProfile interface!");
+		dbg_printf(L"Failed to query IWMProfile interface!");
 		return false;
 	}
 	
 	for(WORD i = 1; i < 64; i++)
 	{
 		IWMStreamConfig *pIWMStreamConfig = NULL;
-		dbg_printf(L"CWmaReader::analyze: Analyzing stream #%d", static_cast<int>(i));
+		dbg_printf(L"Analyzing stream #%d", static_cast<int>(i));
 		
 		IF_OK(pIWMProfile->GetStreamByNumber(i, &pIWMStreamConfig))
 		{
 			GUID streamType = WMMEDIATYPE_Text;
-			dbg_printf(L"CWmaReader::analyze: Stream configuration of stream #%d read successfully", static_cast<int>(i));
+			dbg_printf(L"Stream configuration of stream #%d read successfully", static_cast<int>(i));
 				
 			IF_OK(pIWMStreamConfig->GetStreamType(&streamType))
 			{
-				dbg_printf(L"CWmaReader::analyze: Stream type of stream #%d read successfully", static_cast<int>(i));
+				dbg_printf(L"Stream type of stream #%d read successfully", static_cast<int>(i));
 
 				if(streamType == WMMEDIATYPE_Audio)
 				{
-					dbg_printf(L"CWmaReader::analyze: Stream #%d appears to be an audio stream", static_cast<int>(i));
+					dbg_printf(L"Stream #%d appears to be an audio stream", static_cast<int>(i));
 					foundAudioStream = _testAudioStream(format, i, pIWMStreamConfig);
 				}
 				else
 				{
-					dbg_printf(L"CWmaReader::analyze: Not an audio stream, skipping this stream!");
+					dbg_printf(L"Not an audio stream, skipping this stream!");
 				}
 			}
 			else
 			{
-				dbg_printf(L"CWmaReader::analyze: Failed to read stream type of stream #%d!", static_cast<int>(i));
+				dbg_printf(L"Failed to read stream type of stream #%d!", static_cast<int>(i));
 			}
 
 			pIWMStreamConfig->Release();
@@ -376,7 +402,7 @@ bool CWmaReader::_findAudioStream(WAVEFORMATEX *format)
 		}
 		else
 		{
-			dbg_printf(L"CWmaReader::analyze: Failed to read stream configuration of stream #%d!", static_cast<int>(i));
+			dbg_printf(L"Failed to read stream configuration of stream #%d!", static_cast<int>(i));
 		}
 
 		if(foundAudioStream) break;
@@ -397,12 +423,12 @@ bool CWmaReader::_testAudioStream(WAVEFORMATEX *format, const WORD idx, IWMStrea
 
 	IF_FAIL(pIWMStreamConfig->QueryInterface(IID_IWMMediaProps, (void**)&pIWMMediaProps))
 	{
-		dbg_printf(L"CWmaReader::analyze: Failed to query IWMMediaProps interface for stream #%d!", static_cast<int>(idx));
+		dbg_printf(L"Failed to query IWMMediaProps interface for stream #%d!", static_cast<int>(idx));
 		return false;
 	}
 
 	DWORD mediaTypeSize = 0;
-	dbg_printf(L"CWmaReader::analyze: Got IWMMediaProps interface for stream #%d", static_cast<int>(idx));
+	dbg_printf(L"Got IWMMediaProps interface for stream #%d", static_cast<int>(idx));
 
 	IF_OK(pIWMMediaProps->GetMediaType(NULL, &mediaTypeSize))
 	{
@@ -411,30 +437,30 @@ bool CWmaReader::_testAudioStream(WAVEFORMATEX *format, const WORD idx, IWMStrea
 				
 		IF_OK(pIWMMediaProps->GetMediaType(mediaType, &mediaTypeSize))
 		{
-			dbg_printf(L"CWmaReader::analyze: Media type of stream #%d read successfully", static_cast<int>(idx));
+			dbg_printf(L"Media type of stream #%d read successfully", static_cast<int>(idx));
 									
 			if(mediaType->formattype == WMFORMAT_WaveFormatEx)
 			{
-				dbg_printf(L"CWmaReader::analyze: Format type of stream #%d is WAVEFORMATEX", static_cast<int>(idx));
+				dbg_printf(L"Format type of stream #%d is WAVEFORMATEX", static_cast<int>(idx));
 				memcpy(format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
 				m_streamNum = idx;
 				audioStreamOkay = true;
 			}
 			else
 			{
-				dbg_printf(L"CWmaReader::analyze: Format type of stream #%d is unsupported!", static_cast<int>(idx));
+				dbg_printf(L"Format type of stream #%d is unsupported!", static_cast<int>(idx));
 			}
 		}
 		else
 		{
-			dbg_printf(L"CWmaReader::analyze: Failed to read media type of stream #%d!", static_cast<int>(idx));
+			dbg_printf(L"Failed to read media type of stream #%d!", static_cast<int>(idx));
 		}
 
 		delete [] buffer;
 	}
 	else
 	{
-		dbg_printf(L"CWmaReader::analyze: Failed to read size of media type of stream #%d!", static_cast<int>(idx));
+		dbg_printf(L"Failed to read size of media type of stream #%d!", static_cast<int>(idx));
 	}
 
 	pIWMMediaProps->Release();
@@ -450,6 +476,7 @@ bool CWmaReader::configureOutput(WAVEFORMATEX *format)
 {
 	if(!(m_isOpen && m_isAnalyzed))
 	{
+		dbg_printf(L"File not open yet or analysis not completed yet!");
 		return false;
 	}
 	
@@ -458,7 +485,7 @@ bool CWmaReader::configureOutput(WAVEFORMATEX *format)
 			
 	if(format->nChannels > 2)
 	{
-		dbg_printf(L"CWmaReader::configureOutput: Trying to enable 'true' multi-channel output");
+		dbg_printf(L"Trying to enable 'true' multi-channel output");
 		BOOL discreteOutput = TRUE;
 		DWORD speakerCfg = 0x00000000; //DSSPEAKER_DIRECTOUT
 		m_reader->SetOutputSetting(m_outputNum, g_wszEnableDiscreteOutput, WMT_TYPE_BOOL, (BYTE*)&discreteOutput, sizeof(BOOL));
@@ -468,7 +495,7 @@ bool CWmaReader::configureOutput(WAVEFORMATEX *format)
 	IF_OK(m_reader->GetOutputProps(m_outputNum, &pIWMOutputMediaProps))
 	{
 		DWORD mediaTypeSize = 0;
-		dbg_printf(L"CWmaReader::configureOutput: Got current output media properties");
+		dbg_printf(L"Got current output media properties");
 
 		IF_OK(pIWMOutputMediaProps->GetMediaType(NULL, &mediaTypeSize))
 		{
@@ -477,35 +504,35 @@ bool CWmaReader::configureOutput(WAVEFORMATEX *format)
 
 			IF_OK(pIWMOutputMediaProps->GetMediaType(mediaType, &mediaTypeSize))
 			{
-				dbg_printf(L"CWmaReader::configureOutput: Got current output media type");
+				dbg_printf(L"Got current output media type");
 	
 				if(mediaType->formattype == WMFORMAT_WaveFormatEx)
 				{
-					dbg_printf(L"CWmaReader::configureOutput: Media format type is WAVEFORMATEX");
+					dbg_printf(L"Media format type is WAVEFORMATEX");
 					memcpy(mediaType->pbFormat, format, sizeof(WAVEFORMATEX));
 
 					IF_OK(pIWMOutputMediaProps->SetMediaType(mediaType))
 					{
-						dbg_printf(L"CWmaReader::configureOutput: New output media type applied successfully");
+						dbg_printf(L"New output media type applied successfully");
 
 						IF_OK(m_reader->SetOutputProps(m_outputNum, pIWMOutputMediaProps))
 						{
-							dbg_printf(L"CWmaReader::configureOutput: New output media properties applied successfully");
+							dbg_printf(L"New output media properties applied successfully");
 							success = true;
 						}
 						else
 						{
-							dbg_printf(L"CWmaReader::configureOutput: Failed to apply new output media properties!");
+							dbg_printf(L"Failed to apply new output media properties!");
 						}
 					}
 					else
 					{
-						dbg_printf(L"CWmaReader::configureOutput: Failed to apply new output media type!");
+						dbg_printf(L"Failed to apply new output media type!");
 					}
 				}
 				else
 				{
-					dbg_printf(L"CWmaReader::configureOutput: Found an unsupported media format type!");
+					dbg_printf(L"Found an unsupported media format type!");
 				}
 			}
 				
@@ -517,7 +544,7 @@ bool CWmaReader::configureOutput(WAVEFORMATEX *format)
 	}
 	else
 	{
-		dbg_printf(L"CWmaReader::configureOutput: Failed to get current output media properties!");
+		dbg_printf(L"Failed to get current output media properties!");
 	}
 
 	return success;
@@ -531,6 +558,7 @@ bool CWmaReader::getOutputFormat(WAVEFORMATEX *format)
 
 	if(!(m_isOpen && m_isAnalyzed))
 	{
+		dbg_printf(L"File not open yet or analysis not completed yet!");
 		return false;
 	}
 
@@ -540,7 +568,7 @@ bool CWmaReader::getOutputFormat(WAVEFORMATEX *format)
 	IF_OK(m_reader->GetOutputProps(m_outputNum, &pIWMOutputMediaProps))
 	{
 		DWORD mediaTypeSize = 0;
-		dbg_printf(L"CWmaReader::getOutputFormat: Output media properties read successfully");
+		dbg_printf(L"Output media properties read successfully");
 
 		IF_OK(pIWMOutputMediaProps->GetMediaType(NULL, &mediaTypeSize))
 		{
@@ -549,29 +577,29 @@ bool CWmaReader::getOutputFormat(WAVEFORMATEX *format)
 				
 			IF_OK(pIWMOutputMediaProps->GetMediaType(mediaType, &mediaTypeSize))
 			{
-				dbg_printf(L"CWmaReader::getOutputFormat: Output media type read successfully");
+				dbg_printf(L"Output media type read successfully");
 
 				if(mediaType->formattype == WMFORMAT_WaveFormatEx)
 				{
-					dbg_printf(L"CWmaReader::getOutputFormat: Output media format read successfully");
+					dbg_printf(L"Output media format read successfully");
 					memcpy(format, mediaType->pbFormat, sizeof(WAVEFORMATEX));
 					success = true;
 				}
 				else
 				{
-					dbg_printf(L"CWmaReader::getOutputFormat: Output media format type is unsupported!");
+					dbg_printf(L"Output media format type is unsupported!");
 				}
 			}
 			else
 			{
-				dbg_printf(L"CWmaReader::getOutputFormat: Failed to get output media type!");
+				dbg_printf(L"Failed to get output media type!");
 			}
 				
 			SAFE_DELETE_ARRAY(buffer)
 		}
 		else
 		{
-			dbg_printf(L"CWmaReader::getOutputFormat: Failed to get output media type!");
+			dbg_printf(L"Failed to get output media type!");
 		}
 				
 		pIWMOutputMediaProps->Release();
@@ -579,7 +607,7 @@ bool CWmaReader::getOutputFormat(WAVEFORMATEX *format)
 	}
 	else
 	{
-		dbg_printf(L"CWmaReader::getOutputFormat: Failed to read output media properties!");
+		dbg_printf(L"Failed to read output media properties!");
 	}
 
 	return success;
@@ -593,6 +621,7 @@ double CWmaReader::getDuration(void)
 
 	if(!(m_isOpen && m_isAnalyzed))
 	{
+		dbg_printf(L"File not open yet or analysis not completed yet!");
 		return duration;
 	}
 	
@@ -604,33 +633,33 @@ double CWmaReader::getDuration(void)
 		WORD size = 0;
 		WORD stream = 0; //m_streamNum
 		
-		dbg_printf(L"CWmaReader::getDuration: Got IWMHeaderInfo interface");
+		dbg_printf(L"Got IWMHeaderInfo interface");
 
 		IF_OK(pHdrInfo->GetAttributeByName(&stream, g_wszWMDuration, &dType, NULL, &size))
 		{
 			if((dType == WMT_TYPE_QWORD) && (size == sizeof(QWORD)))
 			{
 				BYTE pValue[sizeof(QWORD)];
-				dbg_printf(L"CWmaReader::getDuration: Found attribute '%s' of expected type/size", g_wszWMDuration);
+				dbg_printf(L"Found attribute '%s' of expected type/size", g_wszWMDuration);
 
 				IF_OK(pHdrInfo->GetAttributeByName(&stream, g_wszWMDuration, &dType, (BYTE*)&pValue, &size))
 				{
-					dbg_printf(L"CWmaReader::getDuration: Attribute '%s' read successfully", g_wszWMDuration);
+					dbg_printf(L"Attribute '%s' read successfully", g_wszWMDuration);
 					duration = NANOTIME_TO_DOUBLE(*reinterpret_cast<QWORD*>(pValue));
 				}
 				else
 				{
-					dbg_printf(L"CWmaReader::getDuration: Failed to read '%s' attribute!", g_wszWMDuration);
+					dbg_printf(L"Failed to read '%s' attribute!", g_wszWMDuration);
 				}
 			}
 			else
 			{
-				dbg_printf(L"CWmaReader::getDuration: Attribute does not match the expected type/size!");
+				dbg_printf(L"Attribute does not match the expected type/size!");
 			}
 		}
 		else
 		{
-			dbg_printf(L"CWmaReader::getDuration: Attribute '%s' could not be found!", g_wszWMDuration);
+			dbg_printf(L"Attribute '%s' could not be found!", g_wszWMDuration);
 		}
 		
 		pHdrInfo->Release();
@@ -638,7 +667,7 @@ double CWmaReader::getDuration(void)
 	}
 	else
 	{
-		dbg_printf(L"CWmaReader::getDuration: Failed to query IWMHeaderInfo interface!");
+		dbg_printf(L"Failed to query IWMHeaderInfo interface!");
 	}
 
 	return duration;
@@ -653,6 +682,7 @@ bool CWmaReader::getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t siz
 	
 	if(!(m_isOpen && m_isAnalyzed))
 	{
+		dbg_printf(L"File not open yet or analysis not completed yet!");
 		return false;
 	}
 
@@ -660,45 +690,69 @@ bool CWmaReader::getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t siz
 	IWMHeaderInfo2* pHdrInfo = NULL;
 	bool foundInfo = false;
 
-	IF_OK(m_reader->QueryInterface(IID_IWMHeaderInfo2,(void**)&pHdrInfo))
+	IF_FAIL(m_reader->QueryInterface(IID_IWMHeaderInfo2,(void**)&pHdrInfo))
 	{
-		DWORD codecCount = 0;
+		dbg_printf(L"Failed to query IWMHeaderInfo2 interface!");
+		return false;
+	}
 
-		IF_OK(pHdrInfo->GetCodecInfoCount(&codecCount))
+	DWORD codecCount = 0;
+
+	IF_OK(pHdrInfo->GetCodecInfoCount(&codecCount))
+	{
+		for(DWORD i = 0; i < codecCount; i++)
 		{
-			for(DWORD i = 0; i < codecCount; i++)
+			dbg_printf(L"Reading Codec info #%u", i);
+			
+			WORD sizeName = 0;
+			WORD sizeDesc = 0;
+			WORD sizeInfo = 0;
+			WMT_CODEC_INFO_TYPE codecInfoType;
+
+			IF_OK(pHdrInfo->GetCodecInfo(i, &sizeName, NULL, &sizeDesc, NULL, &codecInfoType, &sizeInfo, NULL))
 			{
-				WORD sizeName = 0;
-				WORD sizeDesc = 0;
-				WORD sizeInfo = 0;
-				WMT_CODEC_INFO_TYPE codecInfoType;
-
-				IF_OK(pHdrInfo->GetCodecInfo(i, &sizeName, NULL, &sizeDesc, NULL, &codecInfoType, &sizeInfo, NULL))
+				if(codecInfoType == WMT_CODECINFO_AUDIO)
 				{
-					if(codecInfoType == WMT_CODECINFO_AUDIO)
+					wchar_t *buffName = new wchar_t[sizeName+1];
+					wchar_t *buffDesc = new wchar_t[sizeDesc+1];
+					BYTE *buffInfo = new BYTE[sizeInfo];
+
+					IF_OK(pHdrInfo->GetCodecInfo(i, &sizeName, buffName, &sizeDesc, buffDesc, &codecInfoType, &sizeInfo, buffInfo))
 					{
-						wchar_t *buffName = new wchar_t[sizeName+1];
-						wchar_t *buffDesc = new wchar_t[sizeDesc+1];
-						BYTE *buffInfo = new BYTE[sizeInfo];
-
-						IF_OK(pHdrInfo->GetCodecInfo(i, &sizeName, buffName, &sizeDesc, buffDesc, &codecInfoType, &sizeInfo, buffInfo))
-						{
-							if(wcslen(buffName) > 0) wcsncpy_s(codecName, size, buffName, _TRUNCATE);
-							if(wcslen(buffDesc) > 0) wcsncpy_s(codecInfo, size, buffDesc, _TRUNCATE);
-							foundInfo = true;
-						}
-
-						SAFE_DELETE_ARRAY(buffName);
-						SAFE_DELETE_ARRAY(buffDesc);
-						SAFE_DELETE_ARRAY(buffInfo);
+						dbg_printf(L"Codec info was obtained successfully");
+						if(wcslen(buffName) > 0) wcsncpy_s(codecName, size, buffName, _TRUNCATE);
+						if(wcslen(buffDesc) > 0) wcsncpy_s(codecInfo, size, buffDesc, _TRUNCATE);
+						foundInfo = true;
 					}
+					else
+					{
+						dbg_printf(L"Failed to get Codec info #%u!", i);
+					}
+
+					SAFE_DELETE_ARRAY(buffName);
+					SAFE_DELETE_ARRAY(buffDesc);
+					SAFE_DELETE_ARRAY(buffInfo);
+				}
+				else
+				{
+					dbg_printf(L"Codec info type #%u is not audio, skipping!", i);
 				}
 			}
+			else
+			{
+				dbg_printf(L"Failed to get size of Codec info #%u!", i);
+			}
+
+			if(foundInfo) break;
 		}
-		
-		pHdrInfo->Release();
-		pHdrInfo = NULL;
 	}
+	else
+	{
+		dbg_printf(L"Failed to determine Codec info count!");
+	}
+		
+	pHdrInfo->Release();
+	pHdrInfo = NULL;
 
 	return foundInfo;
 }
@@ -711,42 +765,64 @@ bool CWmaReader::getTitle(wchar_t *title, size_t size)
 	
 	if(!(m_isOpen && m_isAnalyzed))
 	{
+		dbg_printf(L"File not open yet or analysis not completed yet!");
 		return false;
 	}
 	
 	IWMHeaderInfo* pHdrInfo = NULL;
 	bool foundInfo = false;
 	
-	IF_OK(m_reader->QueryInterface(IID_IWMHeaderInfo,(void**)&pHdrInfo))
+	IF_FAIL(m_reader->QueryInterface(IID_IWMHeaderInfo,(void**)&pHdrInfo))
 	{
-		WMT_ATTR_DATATYPE dType;
-		WORD attrSize = 0;
-		WORD stream = 0; //m_streamNum;
-		
-		IF_OK(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, NULL, &attrSize))
-		{
-			if((dType == WMT_TYPE_STRING))
-			{
-				size_t strLen = (attrSize / sizeof(wchar_t));
-				
-				if(strLen > 1)
-				{
-					wchar_t *temp = new wchar_t[strLen+1];
-				
-					IF_OK(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, reinterpret_cast<BYTE*>(temp), &attrSize))
-					{
-						wcsncpy_s(title, size, temp, _TRUNCATE);
-						foundInfo = true;
-					}
+		dbg_printf(L"Failed to query IWMHeaderInfo interface!");
+		return false;
+	}
 
-					SAFE_DELETE_ARRAY(temp);
+	WMT_ATTR_DATATYPE dType;
+	WORD attrSize = 0;
+	WORD stream = 0; //m_streamNum;
+		
+	IF_OK(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, NULL, &attrSize))
+	{
+		if((dType == WMT_TYPE_STRING))
+		{
+			size_t strLen = (attrSize / sizeof(wchar_t));
+			dbg_printf(L"Found attribute '%s' of expected type", g_wszWMTitle);
+				
+			if(strLen > 1)
+			{
+				wchar_t *temp = new wchar_t[strLen+1];
+				
+				IF_OK(pHdrInfo->GetAttributeByName(&stream, g_wszWMTitle, &dType, reinterpret_cast<BYTE*>(temp), &attrSize))
+				{
+					dbg_printf(L"Attribute '%s' read successfully", g_wszWMTitle);
+					wcsncpy_s(title, size, temp, _TRUNCATE);
+					foundInfo = true;
 				}
+				else
+				{
+					dbg_printf(L"Attribute '%s' could not be read!", g_wszWMTitle);
+				}
+
+				SAFE_DELETE_ARRAY(temp);
+			}
+			else
+			{
+				dbg_printf(L"Length of attribute '%s' too short!", g_wszWMTitle);
 			}
 		}
-		
-		pHdrInfo->Release();
-		pHdrInfo = NULL;
+		else
+		{
+			dbg_printf(L"Attribute '%s' has an unexpected type!", g_wszWMTitle);
+		}
 	}
+	else
+	{
+		dbg_printf(L"Attribute '%s' could not be found!", g_wszWMTitle);
+	}
+		
+	pHdrInfo->Release();
+	pHdrInfo = NULL;
 
 	return foundInfo;
 }
@@ -760,22 +836,22 @@ size_t CWmaReader::getSampleSize(void)
 	
 	IF_OK(m_reader->GetMaxOutputSampleSize(m_outputNum, &outputMax))
 	{
-		dbg_printf(L"CWmaReader::getSampleSize: Maximum sample size for output #%u read successfully", m_outputNum);
+		dbg_printf(L"Maximum sample size for output #%u read successfully", m_outputNum);
 
 		IF_OK(m_reader->GetMaxStreamSampleSize(m_streamNum, &streamMax))
 		{
-			dbg_printf(L"CWmaReader::getSampleSize: Maximum sample size for stream #%d read successfully", static_cast<int>(m_streamNum));
-			dbg_printf(L"CWmaReader::getSampleSize: Maximum stream/output sample size is: %u", max(outputMax, streamMax));
+			dbg_printf(L"Maximum sample size for stream #%d read successfully", static_cast<int>(m_streamNum));
+			dbg_printf(L"Maximum sample/output size is %u", max(outputMax, streamMax));
 			return max(outputMax, streamMax);
 		}
 		else
 		{
-			dbg_printf(L"CWmaReader::getSampleSize: Failed to read maximum sample size for stream #%d!", static_cast<int>(m_streamNum));
+			dbg_printf(L"Failed to read maximum sample size for stream #%d!", static_cast<int>(m_streamNum));
 		}
 	}
 	else
 	{
-		dbg_printf(L"CWmaReader::getSampleSize: Failed to read maximum sample size for output #%u!", m_outputNum);
+		dbg_printf(L"Failed to read maximum sample size for output #%u!", m_outputNum);
 	}
 	
 	return 0;
@@ -807,27 +883,27 @@ bool CWmaReader::getNextSample(BYTE *output, const size_t size, size_t *length, 
 
 	IF_FAIL(result = m_reader->GetNextSample(m_streamNum, &buffer, &time, &duration, &flags, &sampleOutputNo, &sampleStreamNo))
 	{
-		dbg_printf(L"CWmaReader::getNextSample: Failed to read next sample (code 0x%X)", result);
+		dbg_printf(L"Failed to read next sample (code 0x%X)", result);
 		return (result == NS_E_NO_MORE_SAMPLES) ? true : false;
 	}
 
 	IF_FAIL(buffer->GetLength(&bufferLen))
 	{
-		dbg_printf(L"CWmaReader::getNextSample: Failed to get the length of the sample!");
+		dbg_printf(L"Failed to get the length of the sample!");
 		buffer->Release();
 		return false;
 	}
 
 	IF_FAIL(buffer->GetBuffer(&bufferPtr))
 	{
-		dbg_printf(L"CWmaReader::getNextSample: Failed to get the pointer to the sample buffer!");
+		dbg_printf(L"Failed to get the pointer to the sample buffer!");
 		buffer->Release();
 		return false;
 	}
 
 	if(bufferLen > size)
 	{
-		dbg_printf(L"CWmaReader::getNextSample: Sample length exceeds destination buffer size!");
+		dbg_printf(L"Sample length exceeds destination buffer size!");
 		buffer->Release();
 		return false;
 	}
@@ -838,7 +914,7 @@ bool CWmaReader::getNextSample(BYTE *output, const size_t size, size_t *length, 
 	if(timeStamp) *timeStamp = NANOTIME_TO_DOUBLE(time);
 	if(sampleDuration) *sampleDuration = NANOTIME_TO_DOUBLE(duration);
 	
-	dbg_printf(L"CWmaReader::getNextSample: Sample read successfully (time: %I64u, duration: %I64u)", time, duration);
+	dbg_printf(L"Sample read successfully (Time: %I64u, Duration: %I64u)", time, duration);
 
 	buffer->Release();
 	buffer = NULL;

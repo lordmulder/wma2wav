@@ -221,7 +221,7 @@ int wma2wav(int argc, _TCHAR* argv[])
 
 	dbg_printf(L"wma2wav - Dump WMA/WMV files to uncompressed Wave Audio");
 	dbg_printf(L"Built on %S at %S with %S for %S", __DATE__, __TIME__, __COMPILER__, __ARCH__);
-	dbg_printf(NULL, GetCommandLineW());
+	dbg_printf(L"CLI: %s", GetCommandLineW());
 
 #if defined(_DEBUG) || !defined(NDEBUG)
 	set_console_color(stderr, BACKGROUND_INTENSITY | BACKGROUND_RED);

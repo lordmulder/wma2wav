@@ -280,15 +280,15 @@ bool secure_load_library(HMODULE *module, const wchar_t* fileName)
 }
 
 #ifdef _DEBUG
-size_t dbg_printf(wchar_t *format, ...)
+size_t _dbg_printf(wchar_t *format, ...)
 {
 	size_t len = 0;
 	va_list args;
 	va_start (args, format);
 	if(format)
 	{
-		wchar_t buffer[160];
-		len = _vsnwprintf_s(buffer, 160, _TRUNCATE, format, args);
+		wchar_t buffer[1024];
+		len = _vsnwprintf_s(buffer, 1024, _TRUNCATE, format, args);
 		if(len > 0) OutputDebugStringW(buffer);
 	}
 	else
