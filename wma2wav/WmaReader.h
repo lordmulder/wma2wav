@@ -108,7 +108,7 @@ public:
 	bool getCodecInfo(wchar_t *codecName, wchar_t *codecInfo, size_t size);
 	
 	/* getTitle()
-	/*   This function determines the title of the that is currently open, if that information is available.
+	/*   This function determines the title of the media that is currently open, if that information is available.
 	/*   The 'title' parameter points to a pre-allocated buffer that will receive the title of the media. The size parameter specifies the buffer size, in wchar_t's.
 	/*   Returns TRUE if the title was read successfully, FALSE otherwise.
 	 */
