@@ -23,6 +23,7 @@
 
 #include "stdafx.h"
 struct IWMSyncReader;
+struct IWMStreamConfig;
 
 class CWmaReader
 {
@@ -55,5 +56,6 @@ private:
 	WORD m_streamNum;
 	
 	bool _findAudioStream(WAVEFORMATEX *format);
+	bool _testAudioStream(WAVEFORMATEX *format, const WORD idx, IWMStreamConfig *pIWMStreamConfig);
 };
 
