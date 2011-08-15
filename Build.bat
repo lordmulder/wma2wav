@@ -7,7 +7,7 @@ set "PATH_7ZIP=C:\Program Files\7-Zip"
 set "PATH_UPX=C:\Program Files\UPX"
 set "PATH_MPRESS=C:\Program Files\MPress"
 set "MSBUILD_VERBOSITY=normal"
-set "MSVC9_INSTALLED=1"
+set "MSVC9_INSTALLED=0"
 rem -------------------------------------------------------------------------
 rem DO NOT MODIFY ANY LINES BELOW THIS LINE !!!
 rem -------------------------------------------------------------------------

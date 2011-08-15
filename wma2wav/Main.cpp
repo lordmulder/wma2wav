@@ -22,13 +22,20 @@
 #include "stdafx.h"
 #include "wma2wav.h"
 #include "Utils.h"
-#include <Objbase.h>
 
-void invalid_param_handler(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
+static void invalid_param_handler(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
 {
 	fprintf(stderr, "\nInternal Error: Invalid parameters handler was invoked.\n");
 	fprintf(stderr, "This incident should be reported to the developer!\n");
 	TerminateProcess(GetCurrentProcess(), -1);
+}
+
+static LONG WINAPI unhandled_exception_filter(struct _EXCEPTION_POINTERS *dummy)
+{
+	fprintf(stderr, "\nInternal Error: Unhandled exception filter was invoked.\n");
+	fprintf(stderr, "This incident should be reported to the developer!\n");
+	TerminateProcess(GetCurrentProcess(), -1);
+	return -1;
 }
 
 static int wmain2(int argc, _TCHAR* argv[])
@@ -57,6 +64,7 @@ static int wmain2(int argc, _TCHAR* argv[])
 int wmain(int argc, _TCHAR* argv[])
 {
 	_set_invalid_parameter_handler(invalid_param_handler);
+	SetUnhandledExceptionFilter(unhandled_exception_filter);
 
 	__try
 	{

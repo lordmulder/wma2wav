@@ -21,6 +21,7 @@
 
 #include "utils.h"
 #include <io.h>
+#include <fcntl.h>
 #include <math.h>
 #include <map>
 #include <Objbase.h>
@@ -79,8 +80,8 @@ void repair_standard_streams(void)
 		g_old_cp = GetConsoleOutputCP();
 		SetConsoleOutputCP(CP_UTF8);
 
-		int hCrtStdOut = _open_osfhandle((long) GetStdHandle(STD_OUTPUT_HANDLE), 0);
-		int hCrtStdErr = _open_osfhandle((long) GetStdHandle(STD_ERROR_HANDLE), 0);
+		int hCrtStdOut = _open_osfhandle((intptr_t) GetStdHandle(STD_OUTPUT_HANDLE), _O_BINARY);
+		int hCrtStdErr = _open_osfhandle((intptr_t) GetStdHandle(STD_ERROR_HANDLE), _O_U8TEXT);
 
 		if(hCrtStdOut >= 0)
 		{
