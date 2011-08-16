@@ -38,6 +38,12 @@ static LONG WINAPI unhandled_exception_filter(struct _EXCEPTION_POINTERS *dummy)
 	return -1;
 }
 
+static BOOL WINAPI ctrl_handler_routine(DWORD dwCtrlType)
+{
+	g_aborted = true;
+	return TRUE;
+}
+
 static int wmain2(int argc, _TCHAR* argv[])
 {
 	try
@@ -65,6 +71,7 @@ int wmain(int argc, _TCHAR* argv[])
 {
 	_set_invalid_parameter_handler(invalid_param_handler);
 	SetUnhandledExceptionFilter(unhandled_exception_filter);
+	SetConsoleCtrlHandler(ctrl_handler_routine, TRUE);
 
 	__try
 	{

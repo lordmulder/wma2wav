@@ -58,6 +58,8 @@ param_t;
 static const char *txt_missingArgument = "Argument missing for command-line option:\n%s\n\n";
 static const char *alive = "|/-\\";
 
+volatile bool g_aborted = false;
+
 // ==========================================================================================================
 
 static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
@@ -491,11 +493,13 @@ int wma2wav(int argc, _TCHAR* argv[])
 	// Main processing loop (dump audio)
 	//-------------------------------------------------------------------------
 	
+	g_aborted = false;
+
 	bufferLen = ((bufferLen / 4096) + 1) * 4096;
 	buffer = new BYTE[bufferLen];
 	SecureZeroMemory(buffer, bufferLen);
 
-	while(true)
+	while(!g_aborted)
 	{
 		if((!indicator) && (!(param.silentMode)))
 		{
@@ -652,11 +656,18 @@ int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "\nWarning: Sync correction inserted " << stats[0] << " zero bytes, skipped " << stats[1] << " bytes." << flush;
 	}
 
-	cerr << "\n\nAll done." << endl;
-
 	SAFE_DELETE(wmaReader);
 	SAFE_DELETE(sink);
 	SAFE_DELETE_ARRAY(buffer);
 
-	return 0;
+	if(g_aborted)
+	{
+		cerr << "\n\nOperation aborted by user!" << endl;
+		return 15;
+	}
+	else
+	{
+		cerr << "\n\nAll done." << endl;
+		return 0;
+	}
 }

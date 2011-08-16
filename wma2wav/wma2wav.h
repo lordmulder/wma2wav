@@ -19,4 +19,5 @@
 // http://www.gnu.org/licenses/gpl-2.0.txt
 ///////////////////////////////////////////////////////////////////////////////
 
+extern volatile bool g_aborted;
 int wma2wav(int argc, _TCHAR* argv[]);
