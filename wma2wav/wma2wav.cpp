@@ -44,6 +44,7 @@ typedef struct
 	bool noCompensation;
 	bool alternativeMode;
 	bool defaultFormat;
+	bool forceWaveOut;
 	bool showHelp;
 	wchar_t title[128];
 	wchar_t codecName[128];
@@ -73,9 +74,14 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 	param->noCompensation = false;
 	param->alternativeMode = false;
 	param->defaultFormat = false;
+	param->forceWaveOut = false;
 	param->showHelp = false;
 	param->maxTime = numeric_limits<double>::infinity();
 	char *temp = NULL;
+
+	//-------------------------------------------------------------------------
+	// Parse command-line parameters
+	//-------------------------------------------------------------------------
 
 	for(int i = 1; i < argc; i++)
 	{
@@ -165,6 +171,11 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 			param->defaultFormat = true;
 			continue;
 		}
+		if(STREQ(argv[i], L"-w"))
+		{
+			param->forceWaveOut = true;
+			continue;
+		}
 		
 		if(STREQ(argv[i], L"-h") || STREQ(argv[i], L"-?") || STREQ(argv[i], L"/?") || STREQ(argv[i], L"-help") || STREQ(argv[i], L"--help"))
 		{
@@ -181,6 +192,10 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 		return false;
 	}
 
+	//-------------------------------------------------------------------------
+	// Validate parameters
+	//-------------------------------------------------------------------------
+	
 	if(param->noCompensation)
 	{
 		if(param->aggressiveMode)
@@ -201,9 +216,10 @@ static bool parse_cli(int argc, _TCHAR* argv[], param_t *param)
 		return false;
 	}
 
-	if(STREQ(param->outputFile, L"-") && (!(param->rawOutput)))
+	if(STREQ(param->outputFile, L"-") && (!(param->rawOutput)) && (!(param->forceWaveOut)))
 	{
-		cerr << "Output to STDOUT requires \"raw\" mode -> switching to \"raw\" mode!\n" << endl;
+		cerr << "Output to STDOUT requires \"raw\" mode -> switching to \"raw\" mode ('-r' option)." << endl;
+		cerr << "If you want to output a fake(!) Wave/RIFF file to STDOUT, use the '-w' option!\n" << endl;
 		param->rawOutput = true;
 	}
 
@@ -268,6 +284,7 @@ int wma2wav(int argc, _TCHAR* argv[])
 		cerr << "  -a           Enable \"aggressive\" sync correction mode (not recommended)" << endl;
 		cerr << "  -n           No sync correction (can not use with '-a' or '-x')" << endl;
 		cerr << "  -d           Use \"default\" audio output format (e.g. Stereo, 16-Bit)" << endl;
+		cerr << "  -w           Always try to output a Wave/RIFF file (for use with STDOUT)" << endl;
 		cerr << "  -h           Prints a list of available command-line options\n" << endl;
 		cerr << "Example:" << endl;
 		cerr << "  wma2wav.exe -i \"c:\\my music\\input.wma\" -o \"c:\\my music\\output.wav\"\n" << endl;

@@ -32,6 +32,7 @@ Options:
   -a           Enable "aggressive" sync correction mode (not recommended)
   -n           No sync correction (can not use with '-a' or '-x')
   -d           Use "default" audio output format (e.g. Stereo, 16-Bit)
+  -w           Always try to output a Wave/RIFF file (for use with STDOUT)
   -h           Prints a list of available command-line options
 
 Example:
@@ -52,9 +53,9 @@ http://www.codecguide.com/windows_media_codecs.htm
 OS Support
 ----------
 
-The pre-compiled binaries of this tool were compiled with Visual Studio 2010 (MSVC 10.0) and therefore will only work on Windows XP with Service Pack 2 or any later version of Microsoft Windows (including Vista and Windows 7). They do NOT run on Windows 2000 though! There is a special Visual Studio 2008 (MSVC 9.0) binary included, which should run on Windows 2000. Moreover there is a "x64" (64-Bit) binary that will run on the 64-Bit editions of Vista and Windows 7 only. Last but not least this tool has been tested to work under Linux (Ubuntu 11.04), thanks to Wine.
+The pre-compiled binaries of this tool were compiled with Visual Studio 2010 (MSVC 10.0). Thanks to the 'EncodePointer' workaround, the 32-Bit binary should now work on Windows 2000 and later (including Windows XP, Windows Vista and Windows 7). While the 32-Bit binary works on both, 32-Bit and 64-Bit platforms, there also is a "x64" (64-Bit) binary that will run on the 64-Bit editions of Windows Vista and Windows 7 only. Last but not least this tool has been tested to work under Linux (Ubuntu 11.04), thanks to Wine.
 
-Note: The "debug" binary is intended for testing/debugging purposes only and should NOT be used for normal operation. You can use 'DebugView for Windows' by Mark Russinovich to display detailed log messages with "debug" builds.
+Note: The "debug" binary is intended for testing/debugging purposes only and should NOT be used for normal operation. You can use 'DebugView for Windows' by Mark Russinovich <http://technet.microsoft.com/en-us/sysinternals/bb896647> to display detailed log messages with "debug" builds.
 
 
 Sync Correction
@@ -76,6 +77,7 @@ Changelog
 
 [2011-07-22] Fixed a bug which could cause the application to crash, when the Title, Codec Name or Codec Info of an ASF file exceeded a length of 128 characters.
 [2011-07-24] Workaround for a bug in LoadLibraryEx() that could cause loading WMVCORE.DLL to fail or even make the application crash on certain systems (e.g. 64-Bit Vista without KB2533623)
+[2011-09-08] Added an option to write a fake(!) Wave/RIFF file to STDOUT. Be aware that the chunk sizes won't be updated properly, when piping STDOUT to another application!
 
 
 eof.

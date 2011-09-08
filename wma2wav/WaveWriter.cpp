@@ -40,12 +40,19 @@ bool CWaveWriter::open(wchar_t *filename, WAVEFORMATEX *format)
 		return false;
 	}
 	
-	if(_wfopen_s(&m_file, filename, L"wb"))
+	if(_wcsicmp(filename, L"-"))
 	{
-		m_file = NULL;
-		return false;
+		if(_wfopen_s(&m_file, filename, L"wb"))
+		{
+			m_file = NULL;
+			return false;
+		}
 	}
-	
+	else
+	{
+		m_file = stdout;
+	}
+
 	DWORD dwTemp = 0;
 	WORD wTemp = 0;
 	bool writeError = false;
