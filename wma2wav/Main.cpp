@@ -25,15 +25,15 @@
 
 static void invalid_param_handler(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
 {
-	fprintf(stderr, "\nInternal Error: Invalid parameters handler was invoked.\n");
-	fprintf(stderr, "This incident should be reported to the developer!\n");
+	fwprintf(stderr, L"\nInternal Error: Invalid parameters handler was invoked.\n");
+	fwprintf(stderr, L"This incident should be reported to the developer!\n");
 	TerminateProcess(GetCurrentProcess(), -1);
 }
 
 static LONG WINAPI unhandled_exception_filter(struct _EXCEPTION_POINTERS *dummy)
 {
-	fprintf(stderr, "\nInternal Error: Unhandled exception filter was invoked.\n");
-	fprintf(stderr, "This incident should be reported to the developer!\n");
+	fwprintf(stderr, L"\nInternal Error: Unhandled exception filter was invoked.\n");
+	fwprintf(stderr, L"This incident should be reported to the developer!\n");
 	TerminateProcess(GetCurrentProcess(), -1);
 	return -1;
 }
@@ -52,17 +52,22 @@ static int wmain2(int argc, _TCHAR* argv[])
 	}
 	catch(std::bad_alloc err)
 	{
-		fprintf(stderr, "\nMemory allocation has failed, application will exit!\n");
+		fwprintf(stderr, L"\nMemory allocation has failed, application will exit!\n");
 		return -1;
 	}
 	catch(char *err)
 	{
-		fprintf(stderr, "\n%s\n", err);
+		fwprintf(stderr, L"\n%S\n", err);
+		return -1;
+	}
+	catch(wchar_t *err)
+	{
+		fwprintf(stderr, L"\n%s\n", err);
 		return -1;
 	}
 	catch(...)
 	{
-		fprintf(stderr, "\nUnhandeled exception error, application will exit!\n");
+		fwprintf(stderr, L"\nUnhandeled exception error, application will exit!\n");
 		return -1;
 	}
 }
@@ -78,12 +83,11 @@ int wmain(int argc, _TCHAR* argv[])
 		repair_standard_streams();
 		int result = wmain2(argc, argv);
 		safe_com_uninit();
-		restore_previous_codepage();
 		return result;
 	}
 	__except(1)
 	{
-		fprintf(stderr, "\nUnhandeled system exception, application will exit!\n");
+		fwprintf(stderr, L"\nUnhandeled system exception, application will exit!\n");
 		TerminateProcess(GetCurrentProcess(), -1);
 		return -1;
 	}

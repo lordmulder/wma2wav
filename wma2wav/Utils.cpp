@@ -35,7 +35,6 @@ static int init_lock(RTL_CRITICAL_SECTION *lock);
 static int g_lock_init_done = init_lock(&g_lock);
 static bool g_com_initialized = false;
 static map<FILE*,WORD> g_old_text_attrib;
-static UINT g_old_cp = CP_ACP;
 
 char *utf16_to_utf8(const wchar_t *input)
 {
@@ -77,37 +76,12 @@ void repair_standard_streams(void)
 
 	__try
 	{
-		g_old_cp = GetConsoleOutputCP();
-		SetConsoleOutputCP(CP_UTF8);
-
-		int hCrtStdOut = _open_osfhandle((intptr_t) GetStdHandle(STD_OUTPUT_HANDLE), _O_BINARY);
-		int hCrtStdErr = _open_osfhandle((intptr_t) GetStdHandle(STD_ERROR_HANDLE), _O_U8TEXT);
-
-		if(hCrtStdOut >= 0)
+		_setmode(_fileno(stdout), _O_BINARY);
+		_setmode(_fileno(stderr), _O_U8TEXT);
+		if(_ftelli64(stderr) == 0I64)
 		{
-			FILE *hfStdout = _fdopen(hCrtStdOut, "w");
-			if(hfStdout) *stdout = *hfStdout;
+			fwprintf(stderr, L"%c", L'\uFEFF');
 		}
-
-		if(hCrtStdErr >= 0)
-		{
-			FILE *hfStderr = _fdopen(hCrtStdErr, "w");
-			if(hfStderr) *stderr = *hfStderr;
-		}
-	}
-	__finally
-	{
-		LeaveCriticalSection(&g_lock);
-	}
-}
-
-void restore_previous_codepage(void)
-{
-	EnterCriticalSection(&g_lock);
-
-	__try
-	{
-		SetConsoleOutputCP(g_old_cp);
 	}
 	__finally
 	{
@@ -183,10 +157,10 @@ double bytes_to_time(size_t bytes, WAVEFORMATEX *format)
 	return static_cast<double>(bytes / (format->wBitsPerSample / 8) / format->nChannels) / static_cast<double>(format->nSamplesPerSec);
 }
 
-const char *ltrim(const char *const text)
+const wchar_t *ltrim(const wchar_t *const text)
 {
-	const char *ptr = text;
-	while(ptr[0] == 0x20) ptr++;
+	const wchar_t *ptr = text;
+	while(ptr[0] == L' ') ptr++;
 	return ptr;
 }
 
